@@ -1,0 +1,13 @@
+# Maven - https://github.com/github/gitignore/blob/b8da0e3a89f5d75acdb9d5fed06700bfff3695f9/Maven.gitignore
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+# Local Node
+server/src/test/resources/node
+server/src/test/resources/node_modules
