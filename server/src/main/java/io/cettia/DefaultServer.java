@@ -337,6 +337,11 @@ public class DefaultServer implements Server {
         }
 
         @Override
+        public State state() {
+            return state.get();
+        }
+
+        @Override
         public String uri() {
             return transport.uri();
         }
@@ -479,10 +484,6 @@ public class DefaultServer implements Server {
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
-        }
-
-        private static enum State {
-            OPENED, CLOSED, DELETED
         }
     }
 

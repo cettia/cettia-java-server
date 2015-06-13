@@ -33,6 +33,11 @@ import java.util.Set;
 public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
 
     /**
+     * The current state of the socket.
+     */
+    State state();
+
+    /**
      * A URI used to connect. To work with URI parts, use {@link URI} or
      * something like that.
      */
@@ -157,6 +162,31 @@ public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
      * {@link ServerTransport} is available.
      */
     <T> T unwrap(Class<T> clazz);
+
+    /**
+     * Enumeration of the state of the socket.
+     * 
+     * @author Donghwan Kim
+     */
+    enum State {
+
+        /**
+         * A state where the communication is possible.
+         */
+        OPENED,
+
+        /**
+         * A state the underlying connection is disconnected temporarily.
+         */
+        CLOSED,
+
+        /**
+         * A state where it is deleted from the server because of long periods
+         * of disconnection. A deleted socket shouldn't be used.
+         */
+        DELETED
+
+    }
 
     /**
      * Interface to deal with reply.
