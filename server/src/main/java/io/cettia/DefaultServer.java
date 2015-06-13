@@ -28,17 +28,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -46,9 +46,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Default implementation of {@link Server}.
- * <p>
- * This implementation consumes {@link ServerTransport} and produces
- * {@link ServerSocket} following the Cettia protocol.
  * <p>
  * The following options are configurable.
  * <ul>
@@ -59,32 +56,49 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public class DefaultServer implements Server {
 
-    private final Logger log = LoggerFactory.getLogger(DefaultServer.class);
-    private Set<ServerSocket> sockets = new CopyOnWriteArraySet<>();
+    private Map<String, DefaultServerSocket> sockets = new ConcurrentHashMap<>();
+    private Actions<ServerSocket> socketActions = new ConcurrentActions<ServerSocket>();
     private int heartbeat = 20000;
     private int _heartbeat = 5000;
-    private Actions<ServerSocket> socketActions = new ConcurrentActions<ServerSocket>()
-    .add(new Action<ServerSocket>() {
-        @Override
-        public void on(final ServerSocket socket) {
-            log.trace("{}'s request has opened", socket);
-            sockets.add(socket);
-            socket.onclose(new VoidAction() {
-                @Override
-                public void on() {
-                    log.trace("{}'s request has been closed", socket);
-                    sockets.remove(socket);
-                }
-            });
-        }
-    });
 
     @Override
     public void on(ServerTransport transport) {
-        Map<String, String> map = new LinkedHashMap<>();
-        map.put("heartbeat", "" + heartbeat);
-        map.put("_heartbeat", "" + _heartbeat);
-        socketActions.fire(new DefaultServerSocket(transport, map));
+        DefaultServerSocket socket = null;
+        Map<String, String> headers = HttpTransportServer.parseQuery(transport.uri());
+        String sid = headers.get("sid");
+        // ConcurrentHashMap is not null-safe
+        if (sid != null) {
+            socket = sockets.get(sid);
+        }
+        if (socket == null) {
+            socket = createSocket(transport);
+            socketActions.fire(socket);
+        }
+        socket.handshake(transport);
+    }
+    
+    private DefaultServerSocket createSocket(ServerTransport transport) {
+        Map<String, String> options = new LinkedHashMap<>();
+        options.put("heartbeat", "" + heartbeat);
+        options.put("_heartbeat", "" + _heartbeat);
+        final DefaultServerSocket socket = new DefaultServerSocket(options);
+        // A temporal implementation of 'once'
+        final AtomicBoolean done = new AtomicBoolean();
+        socket.onopen(new VoidAction() {
+            @Override
+            public void on() {
+                if (!done.getAndSet(true)) {
+                    sockets.put(socket.id, socket);
+                    socket.ondelete(new VoidAction() {
+                        @Override
+                        public void on() {
+                            sockets.remove(socket.id);
+                        }
+                    });
+                }
+            }
+        });
+        return socket;
     }
 
     @Override
@@ -99,7 +113,7 @@ public class DefaultServer implements Server {
 
     @Override
     public Server all(Action<ServerSocket> action) {
-        for (ServerSocket socket : sockets) {
+        for (ServerSocket socket : sockets.values()) {
             action.on(socket);
         }
         return this;
@@ -123,7 +137,7 @@ public class DefaultServer implements Server {
     @Override
     public Server byTag(String[] names, Action<ServerSocket> action) {
         List<String> nameList = Arrays.asList(names);
-        for (ServerSocket socket : sockets) {
+        for (ServerSocket socket : sockets.values()) {
             if (socket.tags().containsAll(nameList)) {
                 action.on(socket);
             }
@@ -154,78 +168,68 @@ public class DefaultServer implements Server {
     }
 
     private static class DefaultServerSocket implements ServerSocket {
-        private final ServerTransport transport;
+        private final Map<String, String> options;
+        String id = UUID.randomUUID().toString();
+
         private ObjectMapper mapper = new ObjectMapper();
-        private AtomicInteger eventId = new AtomicInteger();
         private Set<String> tags = new CopyOnWriteArraySet<>();
+        private AtomicInteger eventId = new AtomicInteger();
         private ConcurrentMap<String, Actions<Object>> actionsMap = new ConcurrentHashMap<>();
         private ConcurrentMap<String, Map<String, Action<Object>>> callbacksMap = new ConcurrentHashMap<>();
-        private AtomicReference<Timer> heartbeatTimer = new AtomicReference<>();
+        private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-        public DefaultServerSocket(final ServerTransport transport, Map<String, String> query) {
-            this.transport = transport;
+        private ServerTransport transport;
+        private ScheduledFuture<?> deleteFuture;
+        private ScheduledFuture<?> heartbeatFuture;
+        private AtomicReference<State> state = new AtomicReference<>();
+
+        public DefaultServerSocket(Map<String, String> opts) {
+            this.options = opts;
+            // Prepares actions for reserved events
+            actionsMap.put("open", new ConcurrentActions<>());
+            actionsMap.put("heartbeat", new ConcurrentActions<>());
+            actionsMap.put("close", new ConcurrentActions<>());
+            actionsMap.put("cache", new ConcurrentActions<>());
             actionsMap.put("error", new ConcurrentActions<>());
-            transport.onerror(new Action<Throwable>() {
-                @Override
-                public void on(Throwable throwable) {
-                    actionsMap.get("error").fire(throwable);
-                }
-            });
-            actionsMap.put("close", new ConcurrentActions<>(new Actions.Options().once(true).memory(true)));
-            transport.onclose(new VoidAction() {
+            // delete event should have once and memory of true
+            actionsMap.put("delete", new ConcurrentActions<>(new Actions.Options().once(true).memory(true)));
+
+            onopen(new VoidAction() {
                 @Override
                 public void on() {
-                    actionsMap.get("close").fire();
+                    state.set(State.OPENED);
+                    heartbeatFuture = scheduleHeartbeat();
+                    // deleteFuture is null only on the first open event
+                    if (deleteFuture != null) {
+                        deleteFuture.cancel(false);
+                    }
                 }
             });
-            transport.ontext(new Action<String>() {
+            on("heartbeat", new VoidAction() {
                 @Override
-                public void on(String text) {
-                    final Map<String, Object> event = parseEvent(text);
-                    Actions<Object> actions = actionsMap.get(event.get("type"));
-                    if (actions != null) {
-                        if ((Boolean) event.get("reply")) {
-                            final AtomicBoolean sent = new AtomicBoolean();
-                            actions.fire(new Reply<Object>() {
-                                @Override
-                                public Object data() {
-                                    return event.get("data");
-                                }
-
-                                @Override
-                                public void resolve() {
-                                    resolve(null);
-                                }
-
-                                @Override
-                                public void resolve(Object value) {
-                                    sendReply(value, false);
-                                }
-
-                                @Override
-                                public void reject() {
-                                    reject(null);
-                                }
-
-                                @Override
-                                public void reject(Object value) {
-                                    sendReply(value, true);
-                                }
-
-                                private void sendReply(Object value, boolean exception) {
-                                    if (sent.compareAndSet(false, true)) {
-                                        Map<String, Object> result = new LinkedHashMap<String, Object>();
-                                        result.put("id", event.get("id"));
-                                        result.put("data", value);
-                                        result.put("exception", exception);
-                                        send("reply", result);
-                                    }
-                                }
-                            });
-                        } else {
-                            actions.fire(event.get("data"));
+                public void on() {
+                    heartbeatFuture.cancel(false);
+                    heartbeatFuture = scheduleHeartbeat();
+                    send("heartbeat");
+                }
+            });
+            onclose(new VoidAction() {
+                @Override
+                public void on() {
+                    state.set(State.CLOSED);
+                    heartbeatFuture.cancel(false);
+                    deleteFuture = scheduler.schedule(new Runnable() {
+                        @Override
+                        public void run() {
+                            actionsMap.get("delete").fire();
                         }
-                    }
+                    }, 1, TimeUnit.MINUTES);
+                }
+            });
+            ondelete(new VoidAction() {
+                @Override
+                public void on() {
+                    state.set(State.DELETED);
                 }
             });
             on("reply", new Action<Map<String, Object>>() {
@@ -236,22 +240,100 @@ public class DefaultServer implements Server {
                     action.on(info.get("data"));
                 }
             });
-            final int heartbeat = Integer.parseInt(query.get("heartbeat"));
-            heartbeatTimer.set(createCloseTimer(heartbeat));
-            on("heartbeat", new VoidAction() {
+        }
+
+        private ScheduledFuture<?> scheduleHeartbeat() {
+            return scheduler.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    actionsMap.get("error").fire(new HeartbeatFailedException());
+                    transport.close();
+                }
+            }, Integer.parseInt(options.get("heartbeat")), TimeUnit.MILLISECONDS);
+        }
+
+        void handshake(final ServerTransport t) {
+            Action<Void> handshakeAction = new VoidAction() {
                 @Override
                 public void on() {
-                    heartbeatTimer.getAndSet(createCloseTimer(heartbeat)).cancel();
-                    send("heartbeat");
+                    transport = t;
+                    transport.ontext(new Action<String>() {
+                        @Override
+                        public void on(String text) {
+                            final Map<String, Object> event = parseEvent(text);
+                            Actions<Object> actions = actionsMap.get(event.get("type"));
+                            if (actions != null) {
+                                if ((Boolean) event.get("reply")) {
+                                    final AtomicBoolean sent = new AtomicBoolean();
+                                    actions.fire(new Reply<Object>() {
+                                        @Override
+                                        public Object data() {
+                                            return event.get("data");
+                                        }
+
+                                        @Override
+                                        public void resolve() {
+                                            resolve(null);
+                                        }
+
+                                        @Override
+                                        public void resolve(Object value) {
+                                            sendReply(value, false);
+                                        }
+
+                                        @Override
+                                        public void reject() {
+                                            reject(null);
+                                        }
+
+                                        @Override
+                                        public void reject(Object value) {
+                                            sendReply(value, true);
+                                        }
+
+                                        private void sendReply(Object value, boolean exception) {
+                                            if (sent.compareAndSet(false, true)) {
+                                                Map<String, Object> result = new LinkedHashMap<String, Object>();
+                                                result.put("id", event.get("id"));
+                                                result.put("data", value);
+                                                result.put("exception", exception);
+                                                send("reply", result);
+                                            }
+                                        }
+                                    });
+                                } else {
+                                    actions.fire(event.get("data"));
+                                }
+                            }
+                        }
+                    });
+                    transport.onerror(new Action<Throwable>() {
+                        @Override
+                        public void on(Throwable error) {
+                            actionsMap.get("error").fire(error);
+                        }
+                    });
+                    transport.onclose(new VoidAction() {
+                        @Override
+                        public void on() {
+                            actionsMap.get("close").fire();
+                        }
+                    });
+
+                    Map<String, String> headers = new LinkedHashMap<>();
+                    headers.put("sid", id);
+                    headers.put("heartbeat", options.get("heartbeat"));
+                    headers.put("_heartbeat", options.get("_heartbeat"));
+                    transport.send("?" + HttpTransportServer.formatQuery(headers));
+                    actionsMap.get("open").fire();
                 }
-            });
-            on("close", new VoidAction() {
-                @Override
-                public void on() {
-                    heartbeatTimer.get().cancel();
-                }
-            });
-            transport.send("?" + HttpTransportServer.formatQuery(query));
+            };
+
+            if (state.get() == State.OPENED) {
+                transport.onclose(handshakeAction).close();
+            } else {
+                handshakeAction.on(null);
+            }
         }
 
         @Override
@@ -280,8 +362,23 @@ public class DefaultServer implements Server {
         }
 
         @Override
+        public ServerSocket onopen(Action<Void> action) {
+            return on("open", action);
+        }
+
+        @Override
         public ServerSocket onclose(Action<Void> action) {
             return on("close", action);
+        }
+
+        @Override
+        public ServerSocket oncache(Action<Object[]> action) {
+            return on("cache", action);
+        }
+
+        @Override
+        public ServerSocket ondelete(Action<Void> action) {
+            return on("delete", action);
         }
 
         @Override
@@ -317,27 +414,38 @@ public class DefaultServer implements Server {
         @SuppressWarnings("unchecked")
         @Override
         public <T, U> ServerSocket send(String type, Object data, Action<T> resolved, Action<U> rejected) {
-            String id = "" + eventId.incrementAndGet();
-            Map<String, Object> event = new LinkedHashMap<String, Object>();
-            event.put("id", id);
-            event.put("type", type);
-            event.put("data", data);
-            event.put("reply", resolved != null || rejected != null);
+            if (state.get() != State.OPENED) {
+                actionsMap.get("cache").fire(new Object[] { type, data, resolved, rejected });
+            } else {
+                String id = "" + eventId.incrementAndGet();
+                Map<String, Object> event = new LinkedHashMap<String, Object>();
+                event.put("id", id);
+                event.put("type", type);
+                event.put("data", data);
+                event.put("reply", resolved != null || rejected != null);
 
-            String text = stringifyEvent(event);
-            transport.send(text);
-            if (resolved != null || rejected != null) {
-                Map<String, Action<Object>> cbs = new LinkedHashMap<String, Action<Object>>();
-                cbs.put("resolved", (Action<Object>) resolved);
-                cbs.put("rejected", (Action<Object>) rejected);
-                callbacksMap.put(id, cbs);
+                if (resolved != null || rejected != null) {
+                    Map<String, Action<Object>> cbs = new LinkedHashMap<String, Action<Object>>();
+                    cbs.put("resolved", (Action<Object>) resolved);
+                    cbs.put("rejected", (Action<Object>) rejected);
+                    callbacksMap.put(id, cbs);
+                }
+                String text = stringifyEvent(event);
+                transport.send(text);
             }
             return this;
         }
 
         @Override
         public void close() {
-            transport.close();
+            if (state.get() == State.OPENED) {
+                transport.close();
+            } else {
+                if (deleteFuture != null) {
+                    deleteFuture.cancel(false);
+                }
+                actionsMap.get("delete").fire();
+            }
         }
 
         @Override
@@ -373,16 +481,8 @@ public class DefaultServer implements Server {
             }
         }
 
-        private Timer createCloseTimer(int heartbeat) {
-            Timer timer = new Timer(true);
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    actionsMap.get("error").fire(new HeartbeatFailedException());
-                    close();
-                }
-            }, heartbeat);
-            return timer;
+        private static enum State {
+            OPENED, CLOSED, DELETED
         }
     }
 

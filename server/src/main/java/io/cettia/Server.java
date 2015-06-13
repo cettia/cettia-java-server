@@ -21,9 +21,6 @@ import io.cettia.transport.ServerTransport;
 /**
  * Interface used to interact with sockets.
  * <p>
- * {@code Server} consumes {@link ServerTransport} and produces
- * {@link ServerSocket} following the Cettia protocol.
- * <p>
  * Instances may be accessed by multiple threads.
  * 
  * @author Donghwan Kim
@@ -31,7 +28,7 @@ import io.cettia.transport.ServerTransport;
 public interface Server extends Action<ServerTransport> {
 
     /**
-     * Returns a sentence that every socket in this server have to follow.
+     * Returns a sentence that every socket in this server has to follow.
      */
     Sentence all();
 
@@ -48,22 +45,19 @@ public interface Server extends Action<ServerTransport> {
 
     /**
      * Executes the given action retrieving the socket tagged with the given tag
-     * in this server. The given action will be executed multiple times per
-     * socket if sockets are found and won't be executed if not found.
+     * in this server.
      */
     Server byTag(String name, Action<ServerSocket> action);
 
     /**
      * Executes the given action retrieving the socket tagged with the given
-     * tags in this server. The given action will be executed multiple times per
-     * socket if sockets are found and won't be executed if not found.
+     * tags in this server.
      */
     Server byTag(String[] names, Action<ServerSocket> action);
 
     /**
-     * Registers an action to be called when the socket has been opened in this
-     * server. It's allowed to add several actions at any time, so you don't
-     * need to centralize all your code to one class.
+     * Adds a socket event handler to be called when the socket has been created
+     * in this server.
      */
     Server onsocket(Action<ServerSocket> action);
 

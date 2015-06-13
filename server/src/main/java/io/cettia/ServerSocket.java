@@ -26,14 +26,7 @@ import java.util.Set;
 /**
  * Interface used to interact with the remote socket.
  * <p>
- * {@code ServerSocket} produced by {@link Server} is used to send and receive
- * event to and from the remote socket. The normal usage to use
- * {@code ServerSocket} is to create a socket action and pass it to
- * {@link Server}. If you are going to hold a reference on {@code ServerSocket},
- * you should do something when it is closed through
- * {@link ServerSocket#onclose(Action)}.
- * <p>
- * Sockets may be accessed by multiple threads.
+ * Instances may be accessed by multiple threads.
  * 
  * @author Donghwan Kim
  */
@@ -95,17 +88,46 @@ public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
     <T> ServerSocket on(String event, Action<T> action);
 
     /**
-     * Executed if the socket is closed for any reason. Equivalent to
-     * <code>socket.on("close", action)</code>
+     * Adds an open event handler to be called when the handshake is performed
+     * successfully and communication is possible.
+     * <p>
+     * Equivalent to <code>socket.on("open", action)</code>
+     */
+    ServerSocket onopen(Action<Void> action);
+
+    /**
+     * Adds a close event handler to be called when the underlying transport is
+     * closed for any reason.
+     * <p>
+     * Equivalent to <code>socket.on("close", action)</code>
      */
     ServerSocket onclose(Action<Void> action);
 
     /**
-     * Executed if there was any error on the socket. You don't need to close it
-     * explicitly on <code>error</code> event. Equivalent to
-     * <code>socket.on("error", action)</code>
+     * Adds an error event handler to be called if there was any error on the
+     * socket.
+     * <p>
+     * Equivalent to <code>socket.on("error", action)</code>
      */
     ServerSocket onerror(Action<Throwable> action);
+
+    /**
+     * Adds a cache event handler to be called if one of <code>send</code>
+     * methods is called when there is no connection. The given value is an
+     * array of arguments of {@link #send(String, Object, Action, Action)}.
+     * <p>
+     * Equivalent to <code>socket.on("cache", action)</code>
+     */
+    ServerSocket oncache(Action<Object[]> action);
+
+    /**
+     * Adds a delete event handler to be called when the socket is in the closed
+     * state for a long time i.e. 1 minute and deleted from the server. As the
+     * end of the life cycle, <code>delete</code> event is called only once.
+     * <p>
+     * Equivalent to <code>socket.on("delete", action)</code>
+     */
+    ServerSocket ondelete(Action<Void> action);
 
     /**
      * Removes a given event handler for a given event.
@@ -130,7 +152,9 @@ public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
     <T, U> ServerSocket send(String event, Object data, Action<T> resolved, Action<U> rejected);
 
     /**
-     * Returns the underlying component. {@link ServerTransport} is available.
+     * Returns the underlying component.
+     * <p>
+     * {@link ServerTransport} is available.
      */
     <T> T unwrap(Class<T> clazz);
 
