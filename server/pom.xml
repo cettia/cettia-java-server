@@ -3,7 +3,7 @@
     <parent>
         <groupId>io.cettia</groupId>
         <artifactId>cettia-server-parent</artifactId>
-        <version>1.0.0-Alpha2</version>
+        <version>1.0.0-Alpha3-SNAPSHOT</version>
     </parent>
     <artifactId>cettia-server</artifactId>
     <name>Cettia Server/Server</name>
