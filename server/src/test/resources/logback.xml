@@ -5,7 +5,7 @@
     </encoder>
   </appender>
   <logger name="io.cettia" level="TRACE" />
-  <logger name="io.cettia.platform" level="INFO" />
+  <logger name="io.cettia.asity" level="INFO" />
   <logger name="org.eclipse.jetty" level="INFO" />
   <root>
     <level value="DEBUG" />

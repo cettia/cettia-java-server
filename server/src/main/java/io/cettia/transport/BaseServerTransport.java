@@ -15,9 +15,9 @@
  */
 package io.cettia.transport;
 
-import io.cettia.platform.action.Action;
-import io.cettia.platform.action.Actions;
-import io.cettia.platform.action.ConcurrentActions;
+import io.cettia.asity.action.Action;
+import io.cettia.asity.action.Actions;
+import io.cettia.asity.action.ConcurrentActions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

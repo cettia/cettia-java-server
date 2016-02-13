@@ -18,10 +18,10 @@ package io.cettia;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.cettia.platform.action.Action;
-import io.cettia.platform.action.Actions;
-import io.cettia.platform.action.ConcurrentActions;
-import io.cettia.platform.action.VoidAction;
+import io.cettia.asity.action.Action;
+import io.cettia.asity.action.Actions;
+import io.cettia.asity.action.ConcurrentActions;
+import io.cettia.asity.action.VoidAction;
 import io.cettia.transport.ServerTransport;
 import io.cettia.transport.http.HttpTransportServer;
 

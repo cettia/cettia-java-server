@@ -16,10 +16,10 @@
 package io.cettia;
 
 import io.cettia.ServerSocket.Reply;
-import io.cettia.platform.action.Action;
-import io.cettia.platform.action.VoidAction;
-import io.cettia.platform.bridge.jwa1.CettiaServerEndpoint;
-import io.cettia.platform.bridge.servlet3.CettiaServlet;
+import io.cettia.asity.action.Action;
+import io.cettia.asity.action.VoidAction;
+import io.cettia.asity.bridge.jwa1.AsityServerEndpoint;
+import io.cettia.asity.bridge.servlet3.AsityServlet;
 import io.cettia.transport.http.HttpTransportServer;
 import io.cettia.transport.websocket.WebSocketTransportServer;
 import org.apache.commons.exec.CommandLine;
@@ -133,8 +133,8 @@ public class ProtocolTest {
         });
         regSetup.addMapping("/setup");
         // For HTTP transport
-        Servlet servlet = new CettiaServlet().onhttp(httpTransportServer);
-        ServletRegistration.Dynamic reg = context.addServlet(CettiaServlet.class.getName(),
+        Servlet servlet = new AsityServlet().onhttp(httpTransportServer);
+        ServletRegistration.Dynamic reg = context.addServlet(AsityServlet.class.getName(),
           servlet);
         reg.setAsyncSupported(true);
         reg.addMapping("/cettia");
@@ -146,12 +146,12 @@ public class ProtocolTest {
     });
     // For WebSocket transport
     ServerContainer container = WebSocketServerContainerInitializer.configureContext(handler);
-    ServerEndpointConfig config = ServerEndpointConfig.Builder.create(CettiaServerEndpoint.class,
+    ServerEndpointConfig config = ServerEndpointConfig.Builder.create(AsityServerEndpoint.class,
       "/cettia")
     .configurator(new Configurator() {
       @Override
       public <T> T getEndpointInstance(Class<T> endpointClass) throws InstantiationException {
-        return endpointClass.cast(new CettiaServerEndpoint().onwebsocket(wsTransportServer));
+        return endpointClass.cast(new AsityServerEndpoint().onwebsocket(wsTransportServer));
       }
     })
     .build();

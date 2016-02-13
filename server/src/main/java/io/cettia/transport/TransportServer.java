@@ -15,9 +15,9 @@
  */
 package io.cettia.transport;
 
-import io.cettia.platform.action.Action;
-import io.cettia.platform.http.ServerHttpExchange;
-import io.cettia.platform.websocket.ServerWebSocket;
+import io.cettia.asity.action.Action;
+import io.cettia.asity.http.ServerHttpExchange;
+import io.cettia.asity.websocket.ServerWebSocket;
 
 /**
  * Interface used to interact with transports.

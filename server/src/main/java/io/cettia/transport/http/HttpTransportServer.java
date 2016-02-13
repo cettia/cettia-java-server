@@ -17,12 +17,12 @@ package io.cettia.transport.http;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.cettia.platform.action.Action;
-import io.cettia.platform.action.Actions;
-import io.cettia.platform.action.ConcurrentActions;
-import io.cettia.platform.action.VoidAction;
-import io.cettia.platform.http.HttpStatus;
-import io.cettia.platform.http.ServerHttpExchange;
+import io.cettia.asity.action.Action;
+import io.cettia.asity.action.Actions;
+import io.cettia.asity.action.ConcurrentActions;
+import io.cettia.asity.action.VoidAction;
+import io.cettia.asity.http.HttpStatus;
+import io.cettia.asity.http.ServerHttpExchange;
 import io.cettia.transport.BaseServerTransport;
 import io.cettia.transport.ServerTransport;
 import io.cettia.transport.TransportServer;
@@ -132,11 +132,11 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     .setHeader("access-control-allow-headers", "content-type")
     .setHeader("access-control-allow-credentials", "true");
     switch (http.method()) {
-      case "OPTIONS": {
+      case OPTIONS: {
         http.end();
         break;
       }
-      case "GET": {
+      case GET: {
         switch (params.get("when")) {
           case "open": {
             String transportName = params.get("transport");
@@ -181,7 +181,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
         }
         break;
       }
-      case "POST": {
+      case POST: {
         final String id = params.get("id");
         switch (http.header("content-type") == null ? "" : http.header("content-type")
           .toLowerCase()) {

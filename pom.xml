@@ -61,7 +61,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>1.7</maven.compiler.source>
     <maven.compiler.target>1.7</maven.compiler.target>
-    <cettia.platform.version>1.0.0-Alpha1</cettia.platform.version>
+    <asity.version>1.0.0-Beta1</asity.version>
     <slf4j.version>1.7.16</slf4j.version>
     <logback.version>1.1.4</logback.version>
   </properties>
@@ -73,14 +73,14 @@
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>io.cettia.platform</groupId>
-        <artifactId>cettia-platform-http</artifactId>
-        <version>${cettia.platform.version}</version>
+        <groupId>io.cettia.asity</groupId>
+        <artifactId>asity-http</artifactId>
+        <version>${asity.version}</version>
       </dependency>
       <dependency>
-        <groupId>io.cettia.platform</groupId>
-        <artifactId>cettia-platform-websocket</artifactId>
-        <version>${cettia.platform.version}</version>
+        <groupId>io.cettia.asity</groupId>
+        <artifactId>asity-websocket</artifactId>
+        <version>${asity.version}</version>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
@@ -93,15 +93,15 @@
         <version>2.7.1-1</version>
       </dependency>
       <dependency>
-        <groupId>io.cettia.platform</groupId>
-        <artifactId>cettia-platform-bridge-servlet3</artifactId>
-        <version>${cettia.platform.version}</version>
+        <groupId>io.cettia.asity</groupId>
+        <artifactId>asity-bridge-servlet3</artifactId>
+        <version>${asity.version}</version>
         <scope>test</scope>
       </dependency>
       <dependency>
-        <groupId>io.cettia.platform</groupId>
-        <artifactId>cettia-platform-bridge-jwa1</artifactId>
-        <version>${cettia.platform.version}</version>
+        <groupId>io.cettia.asity</groupId>
+        <artifactId>asity-bridge-jwa1</artifactId>
+        <version>${asity.version}</version>
         <scope>test</scope>
       </dependency>
       <dependency>
@@ -169,9 +169,7 @@
             <![CDATA[Copyright ${project.inceptionYear}, <a href="https://cettia.io/projects/cettia-java-server/">The Cettia Project</a>]]></bottom>
           <packagesheader>cettia</packagesheader>
           <links>
-            <link>
-              http://cettia.io/projects/cettia-java-platform/${cettia.platform.version}/apidocs/
-            </link>
+            <link>http://asity.cettia.io/${asity.version}/apidocs/</link>
           </links>
         </configuration>
       </plugin>

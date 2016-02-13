@@ -15,7 +15,7 @@
  */
 package io.cettia;
 
-import io.cettia.platform.action.Action;
+import io.cettia.asity.action.Action;
 import io.cettia.transport.ServerTransport;
 
 import java.net.URI;

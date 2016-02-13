@@ -27,24 +27,24 @@
   <name>Cettia Server/Server</name>
   <dependencies>
     <dependency>
-      <groupId>io.cettia.platform</groupId>
-      <artifactId>cettia-platform-http</artifactId>
+      <groupId>io.cettia.asity</groupId>
+      <artifactId>asity-http</artifactId>
     </dependency>
     <dependency>
-      <groupId>io.cettia.platform</groupId>
-      <artifactId>cettia-platform-websocket</artifactId>
+      <groupId>io.cettia.asity</groupId>
+      <artifactId>asity-websocket</artifactId>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
     </dependency>
     <dependency>
-      <groupId>io.cettia.platform</groupId>
-      <artifactId>cettia-platform-bridge-servlet3</artifactId>
+      <groupId>io.cettia.asity</groupId>
+      <artifactId>asity-bridge-servlet3</artifactId>
     </dependency>
     <dependency>
-      <groupId>io.cettia.platform</groupId>
-      <artifactId>cettia-platform-bridge-jwa1</artifactId>
+      <groupId>io.cettia.asity</groupId>
+      <artifactId>asity-bridge-jwa1</artifactId>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty.websocket</groupId>
