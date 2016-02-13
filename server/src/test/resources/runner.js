@@ -5,8 +5,8 @@ var Mocha = require("mocha");
 var mocha = new Mocha();
 
 mocha.addFile("./src/test/resources/node_modules/cettia-protocol/test/server.js");
-mocha.run(function(failures) {
-    process.on("exit", function() {
+mocha.run(function (failures) {
+    process.on("exit", function () {
         process.exit(failures);
     });
 });

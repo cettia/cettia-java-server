@@ -21,20 +21,20 @@ import io.cettia.platform.websocket.ServerWebSocket;
 
 /**
  * Interface used to interact with transports.
- * <p>
+ * <p/>
  * {@code TransportServer} consumes resource like {@link ServerHttpExchange} or
  * {@link ServerWebSocket} and produces {@link ServerTransport} following the
  * corresponding Cettia transport protocol.
- * <p>
+ * <p/>
  * Instances may be accessed by multiple threads.
- * 
+ *
  * @author Donghwan Kim
  */
 public interface TransportServer<T> extends Action<T> {
 
-    /**
-     * Registers an action to be called when the transport has been opened.
-     */
-    TransportServer<T> ontransport(Action<ServerTransport> action);
+  /**
+   * Registers an action to be called when the transport has been opened.
+   */
+  TransportServer<T> ontransport(Action<ServerTransport> action);
 
 }

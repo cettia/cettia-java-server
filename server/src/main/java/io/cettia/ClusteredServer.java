@@ -26,10 +26,10 @@ import java.util.Map;
 
 /**
  * {@link Server} implementation for clustering.
- * <p>
+ * <p/>
  * With this implementation, {@code server.all(action)} have {@code action} be
  * executed with every socket in every server in the cluster.
- * <p>
+ * <p/>
  * This implementation adopts the publish and subscribe model from Java Message
  * Service to support clustering. Here, the exchanged message represents method
  * invocation to be executed by every server in the cluster. The following
@@ -48,75 +48,76 @@ import java.util.Map;
  * {@link ClusteredServer#onpublish(Action)} to every server in the cluster and
  * to subscribe a published message by other servers to delegate it to
  * {@link ClusteredServer#messageAction()}.
- * <p>
+ * <p/>
  * Accordingly, such message must be able to be serialized and you have to pass
  * {@link Action} implementing {@link Serializable}. However, serialization of
  * inner classes doesn't work in some cases as expected so that always use
  * {@link Sentence} instead of action if possible unless you use lambda
  * expressions.
- * 
+ *
  * @author Donghwan Kim
  * @see <a
- *      href="http://docs.oracle.com/javase/7/docs/platform/serialization/spec/serial-arch.html#4539">Note
- *      of the Serializable Interface</a>
+ * href="http://docs.oracle.com/javase/7/docs/platform/serialization/spec/serial-arch
+ * .html#4539">Note
+ * of the Serializable Interface</a>
  */
 public class ClusteredServer extends DefaultServer {
 
-    private Actions<Map<String, Object>> publishActions = new ConcurrentActions<>();
-    private Action<Map<String, Object>> messageAction = new Action<Map<String, Object>>() {
-        @SuppressWarnings("unchecked")
-        @Override
-        public void on(Map<String, Object> map) {
-            String methodName = (String) map.get("method");
-            Object[] args = (Object[]) map.get("args");
-            switch (methodName) {
-            case "all":
-                ClusteredServer.super.all((Action<ServerSocket>) args[0]);
-                break;
-            case "byTag":
-                ClusteredServer.super.byTag((String[]) args[0], (Action<ServerSocket>) args[1]);
-                break;
-            default:
-                throw new IllegalArgumentException("Illegal method name in processing message: "
-                        + methodName);
-            }
-        }
-    };
-
+  private Actions<Map<String, Object>> publishActions = new ConcurrentActions<>();
+  private Action<Map<String, Object>> messageAction = new Action<Map<String, Object>>() {
+    @SuppressWarnings("unchecked")
     @Override
-    public Server all(Action<ServerSocket> action) {
-        publishMessage("all", action);
-        return this;
+    public void on(Map<String, Object> map) {
+      String methodName = (String) map.get("method");
+      Object[] args = (Object[]) map.get("args");
+      switch (methodName) {
+        case "all":
+          ClusteredServer.super.all((Action<ServerSocket>) args[0]);
+          break;
+        case "byTag":
+          ClusteredServer.super.byTag((String[]) args[0], (Action<ServerSocket>) args[1]);
+          break;
+        default:
+          throw new IllegalArgumentException("Illegal method name in processing message: "
+            + methodName);
+      }
     }
+  };
 
-    @Override
-    public Server byTag(String[] names, Action<ServerSocket> action) {
-        publishMessage("byTag", names, action);
-        return this;
-    }
+  @Override
+  public Server all(Action<ServerSocket> action) {
+    publishMessage("all", action);
+    return this;
+  }
 
-    private void publishMessage(String method, Object... args) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("method", method);
-        map.put("args", args);
-        publishActions.fire(Collections.unmodifiableMap(map));
-    }
+  @Override
+  public Server byTag(String[] names, Action<ServerSocket> action) {
+    publishMessage("byTag", names, action);
+    return this;
+  }
 
-    /**
-     * Adds an action to be called with a message to be published to every node
-     * in the cluster.
-     */
-    public Server onpublish(Action<Map<String, Object>> action) {
-        publishActions.add(action);
-        return this;
-    }
+  private void publishMessage(String method, Object... args) {
+    Map<String, Object> map = new LinkedHashMap<>();
+    map.put("method", method);
+    map.put("args", args);
+    publishActions.fire(Collections.unmodifiableMap(map));
+  }
 
-    /**
-     * An action to receive a message published from one of nodes in the
-     * cluster.
-     */
-    public Action<Map<String, Object>> messageAction() {
-        return messageAction;
-    }
+  /**
+   * Adds an action to be called with a message to be published to every node
+   * in the cluster.
+   */
+  public Server onpublish(Action<Map<String, Object>> action) {
+    publishActions.add(action);
+    return this;
+  }
+
+  /**
+   * An action to receive a message published from one of nodes in the
+   * cluster.
+   */
+  public Action<Map<String, Object>> messageAction() {
+    return messageAction;
+  }
 
 }

@@ -23,115 +23,114 @@ import io.cettia.platform.websocket.ServerWebSocket;
 import io.cettia.transport.BaseServerTransport;
 import io.cettia.transport.ServerTransport;
 import io.cettia.transport.TransportServer;
-
-import java.nio.ByteBuffer;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
+
 /**
  * Websocket implementation of {@link TransportServer}.
- * <p>
+ * <p/>
  * It processes transport whose URI whose protocol is either {@code ws} or
  * {@code wss} like {@code ws://localhost:8080/cettia}. Because WebSocket protocol
  * itself meets transport's requirements, a produced transport is actually a
  * thread-safe version of {@link ServerWebSocket}.
- * 
+ *
  * @author Donghwan Kim
  */
 public class WebSocketTransportServer implements TransportServer<ServerWebSocket> {
 
-    private final Logger log = LoggerFactory.getLogger(WebSocketTransportServer.class);
-    private Actions<ServerTransport> transportActions = new ConcurrentActions<ServerTransport>()
+  private final Logger log = LoggerFactory.getLogger(WebSocketTransportServer.class);
+  private Actions<ServerTransport> transportActions = new ConcurrentActions<ServerTransport>()
     .add(new Action<ServerTransport>() {
-        @Override
-        public void on(final ServerTransport transport) {
-            log.trace("{}'s request has opened", transport);
-            transport.onclose(new VoidAction() {
-                @Override
-                public void on() {
-                    log.trace("{}'s request has been closed", transport);
-                }
-            });
-        }
+      @Override
+      public void on(final ServerTransport transport) {
+        log.trace("{}'s request has opened", transport);
+        transport.onclose(new VoidAction() {
+          @Override
+          public void on() {
+            log.trace("{}'s request has been closed", transport);
+          }
+        });
+      }
     });
 
-    @Override
-    public void on(ServerWebSocket ws) {
-        transportActions.fire(new DefaultTransport(ws));
+  @Override
+  public void on(ServerWebSocket ws) {
+    transportActions.fire(new DefaultTransport(ws));
+  }
+
+  @Override
+  public WebSocketTransportServer ontransport(Action<ServerTransport> action) {
+    transportActions.add(action);
+    return this;
+  }
+
+  /**
+   * Represents a server-side WebSocket transport.
+   *
+   * @author Donghwan Kim
+   */
+  private static class DefaultTransport extends BaseServerTransport {
+
+    private final ServerWebSocket ws;
+
+    public DefaultTransport(ServerWebSocket ws) {
+      this.ws = ws;
+      ws.onerror(new Action<Throwable>() {
+        @Override
+        public void on(Throwable throwable) {
+          errorActions.fire(throwable);
+        }
+      })
+      .onclose(new VoidAction() {
+        @Override
+        public void on() {
+          closeActions.fire();
+        }
+      })
+      .ontext(new Action<String>() {
+        @Override
+        public void on(String data) {
+          textActions.fire(data);
+        }
+      })
+      .onbinary(new Action<ByteBuffer>() {
+          @Override
+          public void on(ByteBuffer data) {
+            binaryActions.fire(data);
+          }
+        });
     }
 
     @Override
-    public WebSocketTransportServer ontransport(Action<ServerTransport> action) {
-        transportActions.add(action);
-        return this;
+    public String uri() {
+      return ws.uri();
+    }
+
+    @Override
+    protected synchronized void doSend(String data) {
+      ws.send(data);
+    }
+
+    @Override
+    protected synchronized void doSend(ByteBuffer data) {
+      ws.send(data);
+    }
+
+    @Override
+    public synchronized void doClose() {
+      ws.close();
     }
 
     /**
-     * Represents a server-side WebSocket transport.
-     * 
-     * @author Donghwan Kim
+     * {@link ServerWebSocket} is available.
      */
-    private static class DefaultTransport extends BaseServerTransport {
-
-        private final ServerWebSocket ws;
-
-        public DefaultTransport(ServerWebSocket ws) {
-            this.ws = ws;
-            ws.onerror(new Action<Throwable>() {
-                @Override
-                public void on(Throwable throwable) {
-                    errorActions.fire(throwable);
-                }
-            })
-            .onclose(new VoidAction() {
-                @Override
-                public void on() {
-                    closeActions.fire();
-                }
-            })
-            .ontext(new Action<String>() {
-                @Override
-                public void on(String data) {
-                    textActions.fire(data);
-                }
-            })
-            .onbinary(new Action<ByteBuffer>() {
-                @Override
-                public void on(ByteBuffer data) {
-                    binaryActions.fire(data);
-                }
-            });
-        }
-
-        @Override
-        public String uri() {
-            return ws.uri();
-        }
-
-        @Override
-        protected synchronized void doSend(String data) {
-            ws.send(data);
-        }
-
-        @Override
-        protected synchronized void doSend(ByteBuffer data) {
-            ws.send(data);
-        }
-
-        @Override
-        public synchronized void doClose() {
-            ws.close();
-        }
-
-        /**
-         * {@link ServerWebSocket} is available.
-         */
-        @Override
-        public <T> T unwrap(Class<T> clazz) {
-            return ServerWebSocket.class.isAssignableFrom(clazz) ? clazz.cast(ws) : null;
-        }
-
+    @Override
+    public <T> T unwrap(Class<T> clazz) {
+      return ServerWebSocket.class.isAssignableFrom(clazz) ? clazz.cast(ws) : null;
     }
+
+  }
 
 }

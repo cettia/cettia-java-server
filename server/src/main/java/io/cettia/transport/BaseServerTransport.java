@@ -18,12 +18,11 @@ package io.cettia.transport;
 import io.cettia.platform.action.Action;
 import io.cettia.platform.action.Actions;
 import io.cettia.platform.action.ConcurrentActions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Base class for {@link ServerTransport}.
@@ -32,96 +31,98 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class BaseServerTransport implements ServerTransport {
 
-    protected Actions<String> textActions = new ConcurrentActions<>();
-    protected Actions<ByteBuffer> binaryActions = new ConcurrentActions<>();
-    protected Actions<Throwable> errorActions = new ConcurrentActions<Throwable>()
-    .add(new Action<Throwable>() {
-        @Override
-        public void on(Throwable throwable) {
-            logger.trace("{} has received a throwable {}", BaseServerTransport.this, throwable);
-        }
-    });
-    protected Actions<Void> closeActions = new ConcurrentActions<Void>(new Actions.Options().once(true).memory(true))
-    .add(new Action<Void>() {
-        @Override
-        public void on(Void _) {
-            logger.trace("{} has been closed", BaseServerTransport.this);
-            stateRef.set(State.CLOSED);
-            textActions.disable();
-            errorActions.disable();
-        }
-    });
-    private final Logger logger = LoggerFactory.getLogger(BaseServerTransport.class);
-    private AtomicReference<State> stateRef = new AtomicReference<BaseServerTransport.State>(State.OPEN);
-
+  private final Logger logger = LoggerFactory.getLogger(BaseServerTransport.class);
+  protected Actions<String> textActions = new ConcurrentActions<>();
+  protected Actions<ByteBuffer> binaryActions = new ConcurrentActions<>();
+  protected Actions<Throwable> errorActions = new ConcurrentActions<Throwable>()
+  .add(new Action<Throwable>() {
     @Override
-    public ServerTransport ontext(Action<String> action) {
-        textActions.add(action);
-        return this;
+    public void on(Throwable throwable) {
+      logger.trace("{} has received a throwable {}", BaseServerTransport.this, throwable);
     }
-
+  });
+  private AtomicReference<State> stateRef = new AtomicReference<BaseServerTransport.State>(State
+    .OPEN);
+  protected Actions<Void> closeActions = new ConcurrentActions<Void>(new Actions.Options().once
+    (true).memory(true))
+  .add(new Action<Void>() {
     @Override
-    public ServerTransport onbinary(Action<ByteBuffer> action) {
-        binaryActions.add(action);
-        return this;
+    public void on(Void _) {
+      logger.trace("{} has been closed", BaseServerTransport.this);
+      stateRef.set(State.CLOSED);
+      textActions.disable();
+      errorActions.disable();
     }
+  });
 
-    @Override
-    public BaseServerTransport send(String data) {
-        logger.trace("{} sends a text message {}", this, data);
-        if (stateRef.get() == State.OPEN) {
-            doSend(data);
-        } else {
-            errorActions.fire(new RuntimeException("notopened"));
-        }
-        return this;
+  @Override
+  public ServerTransport ontext(Action<String> action) {
+    textActions.add(action);
+    return this;
+  }
+
+  @Override
+  public ServerTransport onbinary(Action<ByteBuffer> action) {
+    binaryActions.add(action);
+    return this;
+  }
+
+  @Override
+  public BaseServerTransport send(String data) {
+    logger.trace("{} sends a text message {}", this, data);
+    if (stateRef.get() == State.OPEN) {
+      doSend(data);
+    } else {
+      errorActions.fire(new RuntimeException("notopened"));
     }
+    return this;
+  }
 
-    @Override
-    public ServerTransport send(ByteBuffer data) {
-        logger.trace("{} sends a binary message {}", this, data);
-        if (stateRef.get() == State.OPEN) {
-            doSend(data);
-        } else {
-            errorActions.fire(new RuntimeException("notopened"));
-        }
-        return this;
+  @Override
+  public ServerTransport send(ByteBuffer data) {
+    logger.trace("{} sends a binary message {}", this, data);
+    if (stateRef.get() == State.OPEN) {
+      doSend(data);
+    } else {
+      errorActions.fire(new RuntimeException("notopened"));
     }
+    return this;
+  }
 
-    protected abstract void doSend(String data);
+  protected abstract void doSend(String data);
 
-    protected abstract void doSend(ByteBuffer data);
+  protected abstract void doSend(ByteBuffer data);
 
-    @Override
-    public ServerTransport onerror(Action<Throwable> action) {
-        errorActions.add(action);
-        return this;
+  @Override
+  public ServerTransport onerror(Action<Throwable> action) {
+    errorActions.add(action);
+    return this;
+  }
+
+  @Override
+  public ServerTransport onclose(Action<Void> action) {
+    closeActions.add(action);
+    return this;
+  }
+
+  @Override
+  public void close() {
+    logger.trace("{} has started to close the connection", this);
+    State state = stateRef.get();
+    if (state != State.CLOSING && state != State.CLOSED) {
+      if (stateRef.compareAndSet(state, State.CLOSING)) {
+        doClose();
+      }
     }
+  }
 
-    @Override
-    public ServerTransport onclose(Action<Void> action) {
-        closeActions.add(action);
-        return this;
-    }
+  protected abstract void doClose();
 
-    @Override
-    public void close() {
-        logger.trace("{} has started to close the connection", this);
-        State state = stateRef.get();
-        if (state != State.CLOSING && state != State.CLOSED) {
-            if (stateRef.compareAndSet(state, State.CLOSING)) {
-                doClose();
-            }
-        }
-    }
-
-    protected abstract void doClose();
-
-    /**
-     * Represents the state of the connection.
-     */
-    static enum State {
-        OPEN, CLOSING, CLOSED
-    }
+  /**
+   * Represents the state of the connection.
+   */
+  static enum State {
+    OPEN, CLOSING, CLOSED
+  }
 
 }

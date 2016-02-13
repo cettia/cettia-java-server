@@ -25,203 +25,203 @@ import java.util.Set;
 
 /**
  * Interface used to interact with the remote socket.
- * <p>
+ * <p/>
  * Instances may be accessed by multiple threads.
- * 
+ *
  * @author Donghwan Kim
  */
 public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
 
-    /**
-     * The current state of the socket.
-     */
-    State state();
+  /**
+   * The current state of the socket.
+   */
+  State state();
+
+  /**
+   * A URI used to connect. To work with URI parts, use {@link URI} or
+   * something like that.
+   */
+  String uri();
+
+  /**
+   * A modifiable set of tag names.
+   */
+  Set<String> tags();
+
+  /**
+   * Adds a given event handler for a given event.
+   * <p/>
+   * The allowed types for {@code T} are Java types corresponding to JSON
+   * types.
+   * <table>
+   * <thead>
+   * <tr>
+   * <th>JSON</th>
+   * <th>Java</th>
+   * </tr>
+   * </thead> <tbody>
+   * <tr>
+   * <td>Number</td>
+   * <td>{@link Integer} or {@link Double}</td>
+   * </tr>
+   * <tr>
+   * <td>String</td>
+   * <td>{@link String}</td>
+   * </tr>
+   * <tr>
+   * <td>Boolean</td>
+   * <td>{@link Boolean}</td>
+   * </tr>
+   * <tr>
+   * <td>Array</td>
+   * <td>{@link List}, {@code List<T>} in generic</td>
+   * </tr>
+   * <tr>
+   * <td>Object</td>
+   * <td>{@link Map}, {@code Map<String, T>} in generic</td>
+   * </tr>
+   * <tr>
+   * <td>null</td>
+   * <td>{@code null}, {@link Void} for convenience</td>
+   * </tr>
+   * </tbody>
+   * </table>
+   * <p/>
+   * If the counterpart sends an event with callback, {@code T} should be
+   * {@link Reply}.
+   */
+  <T> ServerSocket on(String event, Action<T> action);
+
+  /**
+   * Adds an open event handler to be called when the handshake is performed
+   * successfully and communication is possible.
+   * <p/>
+   * Equivalent to <code>socket.on("open", action)</code>
+   */
+  ServerSocket onopen(Action<Void> action);
+
+  /**
+   * Adds a close event handler to be called when the underlying transport is
+   * closed for any reason.
+   * <p/>
+   * Equivalent to <code>socket.on("close", action)</code>
+   */
+  ServerSocket onclose(Action<Void> action);
+
+  /**
+   * Adds an error event handler to be called if there was any error on the
+   * socket.
+   * <p/>
+   * Equivalent to <code>socket.on("error", action)</code>
+   */
+  ServerSocket onerror(Action<Throwable> action);
+
+  /**
+   * Adds a cache event handler to be called if one of <code>send</code>
+   * methods is called when there is no connection. The given value is an
+   * array of arguments of {@link #send(String, Object, Action, Action)}.
+   * <p/>
+   * Equivalent to <code>socket.on("cache", action)</code>
+   */
+  ServerSocket oncache(Action<Object[]> action);
+
+  /**
+   * Adds a delete event handler to be called when the socket is in the closed
+   * state for a long time i.e. 1 minute and deleted from the server. As the
+   * end of the life cycle, <code>delete</code> event is called only once.
+   * <p/>
+   * Equivalent to <code>socket.on("delete", action)</code>
+   */
+  ServerSocket ondelete(Action<Void> action);
+
+  /**
+   * Removes a given event handler for a given event.
+   */
+  <T> ServerSocket off(String event, Action<T> action);
+
+  /**
+   * Sends a given event with data attaching resolved callback.
+   * <p/>
+   * For the allowed types for {@code T}, see
+   * {@link ServerSocket#on(String, Action)}.
+   */
+  <T> ServerSocket send(String event, Object data, Action<T> resolved);
+
+  /**
+   * Sends a given event with data attaching resolved callback and rejected
+   * callback.
+   * <p/>
+   * For the allowed types for {@code T}, see
+   * {@link ServerSocket#on(String, Action)}.
+   */
+  <T, U> ServerSocket send(String event, Object data, Action<T> resolved, Action<U> rejected);
+
+  /**
+   * Returns the underlying component.
+   * <p/>
+   * {@link ServerTransport} is available.
+   */
+  <T> T unwrap(Class<T> clazz);
+
+  /**
+   * Enumeration of the state of the socket.
+   *
+   * @author Donghwan Kim
+   */
+  enum State {
 
     /**
-     * A URI used to connect. To work with URI parts, use {@link URI} or
-     * something like that.
+     * A state where the communication is possible.
      */
-    String uri();
+    OPENED,
 
     /**
-     * A modifiable set of tag names.
+     * A state the underlying connection is disconnected temporarily.
      */
-    Set<String> tags();
+    CLOSED,
 
     /**
-     * Adds a given event handler for a given event.
-     * <p>
-     * The allowed types for {@code T} are Java types corresponding to JSON
-     * types.
-     * <table>
-     * <thead>
-     * <tr>
-     * <th>JSON</th>
-     * <th>Java</th>
-     * </tr>
-     * </thead> <tbody>
-     * <tr>
-     * <td>Number</td>
-     * <td>{@link Integer} or {@link Double}</td>
-     * </tr>
-     * <tr>
-     * <td>String</td>
-     * <td>{@link String}</td>
-     * </tr>
-     * <tr>
-     * <td>Boolean</td>
-     * <td>{@link Boolean}</td>
-     * </tr>
-     * <tr>
-     * <td>Array</td>
-     * <td>{@link List}, {@code List<T>} in generic</td>
-     * </tr>
-     * <tr>
-     * <td>Object</td>
-     * <td>{@link Map}, {@code Map<String, T>} in generic</td>
-     * </tr>
-     * <tr>
-     * <td>null</td>
-     * <td>{@code null}, {@link Void} for convenience</td>
-     * </tr>
-     * </tbody>
-     * </table>
-     * 
-     * If the counterpart sends an event with callback, {@code T} should be
-     * {@link Reply}.
+     * A state where it is deleted from the server because of long periods
+     * of disconnection. A deleted socket shouldn't be used.
      */
-    <T> ServerSocket on(String event, Action<T> action);
+    DELETED
+
+  }
+
+  /**
+   * Interface to deal with reply.
+   * <p/>
+   * For the allowed types for {@code T}, see {@link ServerSocket#on(String, Action)}.
+   *
+   * @author Donghwan Kim
+   */
+  interface Reply<T> {
 
     /**
-     * Adds an open event handler to be called when the handshake is performed
-     * successfully and communication is possible.
-     * <p>
-     * Equivalent to <code>socket.on("open", action)</code>
+     * The original data.
      */
-    ServerSocket onopen(Action<Void> action);
+    T data();
 
     /**
-     * Adds a close event handler to be called when the underlying transport is
-     * closed for any reason.
-     * <p>
-     * Equivalent to <code>socket.on("close", action)</code>
+     * Resolves.
      */
-    ServerSocket onclose(Action<Void> action);
+    void resolve();
 
     /**
-     * Adds an error event handler to be called if there was any error on the
-     * socket.
-     * <p>
-     * Equivalent to <code>socket.on("error", action)</code>
+     * Resolves with the value.
      */
-    ServerSocket onerror(Action<Throwable> action);
+    void resolve(Object data);
 
     /**
-     * Adds a cache event handler to be called if one of <code>send</code>
-     * methods is called when there is no connection. The given value is an
-     * array of arguments of {@link #send(String, Object, Action, Action)}.
-     * <p>
-     * Equivalent to <code>socket.on("cache", action)</code>
+     * Rejects.
      */
-    ServerSocket oncache(Action<Object[]> action);
+    void reject();
 
     /**
-     * Adds a delete event handler to be called when the socket is in the closed
-     * state for a long time i.e. 1 minute and deleted from the server. As the
-     * end of the life cycle, <code>delete</code> event is called only once.
-     * <p>
-     * Equivalent to <code>socket.on("delete", action)</code>
+     * Rejects with the reason.
      */
-    ServerSocket ondelete(Action<Void> action);
+    void reject(Object error);
 
-    /**
-     * Removes a given event handler for a given event.
-     */
-    <T> ServerSocket off(String event, Action<T> action);
-
-    /**
-     * Sends a given event with data attaching resolved callback.
-     * <p>
-     * For the allowed types for {@code T}, see
-     * {@link ServerSocket#on(String, Action)}.
-     */
-    <T> ServerSocket send(String event, Object data, Action<T> resolved);
-
-    /**
-     * Sends a given event with data attaching resolved callback and rejected
-     * callback.
-     * <p>
-     * For the allowed types for {@code T}, see
-     * {@link ServerSocket#on(String, Action)}.
-     */
-    <T, U> ServerSocket send(String event, Object data, Action<T> resolved, Action<U> rejected);
-
-    /**
-     * Returns the underlying component.
-     * <p>
-     * {@link ServerTransport} is available.
-     */
-    <T> T unwrap(Class<T> clazz);
-
-    /**
-     * Enumeration of the state of the socket.
-     * 
-     * @author Donghwan Kim
-     */
-    enum State {
-
-        /**
-         * A state where the communication is possible.
-         */
-        OPENED,
-
-        /**
-         * A state the underlying connection is disconnected temporarily.
-         */
-        CLOSED,
-
-        /**
-         * A state where it is deleted from the server because of long periods
-         * of disconnection. A deleted socket shouldn't be used.
-         */
-        DELETED
-
-    }
-
-    /**
-     * Interface to deal with reply.
-     * <p>
-     * For the allowed types for {@code T}, see {@link ServerSocket#on(String, Action)}.
-     * 
-     * @author Donghwan Kim
-     */
-    interface Reply<T> {
-
-        /**
-         * The original data.
-         */
-        T data();
-
-        /**
-         * Resolves.
-         */
-        void resolve();
-
-        /**
-         * Resolves with the value.
-         */
-        void resolve(Object data);
-
-        /**
-         * Rejects.
-         */
-        void reject();
-
-        /**
-         * Rejects with the reason.
-         */
-        void reject(Object error);
-
-    }
+  }
 
 }

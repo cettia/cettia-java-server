@@ -18,34 +18,34 @@ package io.cettia;
 /**
  * {@code AbstractSocket} consists of a set of common functionality of
  * {@link Sentence} and {@link ServerSocket}.
- * 
+ *
  * @author Donghwan Kim
  */
 public interface AbstractServerSocket<T> {
 
-    /**
-     * Sends a given event without data.
-     */
-    T send(String event);
+  /**
+   * Sends a given event without data.
+   */
+  T send(String event);
 
-    /**
-     * Sends a given event with data.
-     */
-    T send(String event, Object data);
+  /**
+   * Sends a given event with data.
+   */
+  T send(String event, Object data);
 
-    /**
-     * Closes the socket.
-     */
-    void close();
+  /**
+   * Closes the socket.
+   */
+  void close();
 
-    /**
-     * Attaches given tags to the socket.
-     */
-    T tag(String... names);
+  /**
+   * Attaches given tags to the socket.
+   */
+  T tag(String... names);
 
-    /**
-     * Detaches given tags from the socket.
-     */
-    T untag(String... names);
+  /**
+   * Detaches given tags from the socket.
+   */
+  T untag(String... names);
 
 }

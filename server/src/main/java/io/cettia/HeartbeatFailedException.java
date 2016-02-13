@@ -17,8 +17,9 @@ package io.cettia;
 
 /**
  * An exception to be thrown when heartbeat operations fails.
- * 
+ *
  * @author Donghwan Kim
  */
 @SuppressWarnings("serial")
-public class HeartbeatFailedException extends RuntimeException {}
+public class HeartbeatFailedException extends RuntimeException {
+}

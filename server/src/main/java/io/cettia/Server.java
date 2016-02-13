@@ -20,45 +20,45 @@ import io.cettia.transport.ServerTransport;
 
 /**
  * Interface used to interact with sockets.
- * <p>
+ * <p/>
  * Instances may be accessed by multiple threads.
- * 
+ *
  * @author Donghwan Kim
  */
 public interface Server extends Action<ServerTransport> {
 
-    /**
-     * Returns a sentence that every socket in this server has to follow.
-     */
-    Sentence all();
+  /**
+   * Returns a sentence that every socket in this server has to follow.
+   */
+  Sentence all();
 
-    /**
-     * Executes the given action retrieving every socket in this server.
-     */
-    Server all(Action<ServerSocket> action);
+  /**
+   * Executes the given action retrieving every socket in this server.
+   */
+  Server all(Action<ServerSocket> action);
 
-    /**
-     * Returns a sentence that the socket tagged with the given tags in this
-     * server have to follow.
-     */
-    Sentence byTag(String... names);
+  /**
+   * Returns a sentence that the socket tagged with the given tags in this
+   * server have to follow.
+   */
+  Sentence byTag(String... names);
 
-    /**
-     * Executes the given action retrieving the socket tagged with the given tag
-     * in this server.
-     */
-    Server byTag(String name, Action<ServerSocket> action);
+  /**
+   * Executes the given action retrieving the socket tagged with the given tag
+   * in this server.
+   */
+  Server byTag(String name, Action<ServerSocket> action);
 
-    /**
-     * Executes the given action retrieving the socket tagged with the given
-     * tags in this server.
-     */
-    Server byTag(String[] names, Action<ServerSocket> action);
+  /**
+   * Executes the given action retrieving the socket tagged with the given
+   * tags in this server.
+   */
+  Server byTag(String[] names, Action<ServerSocket> action);
 
-    /**
-     * Adds a socket event handler to be called when the socket has been created
-     * in this server.
-     */
-    Server onsocket(Action<ServerSocket> action);
+  /**
+   * Adds a socket event handler to be called when the socket has been created
+   * in this server.
+   */
+  Server onsocket(Action<ServerSocket> action);
 
 }
