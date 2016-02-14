@@ -28,6 +28,8 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
 import javax.servlet.ServletContext;
@@ -46,12 +48,15 @@ import java.util.Map;
 
 public class ProtocolTest {
 
+  private final Logger log = LoggerFactory.getLogger(ProtocolTest.class);
+
   @Test
   public void protocol() throws Exception {
     final DefaultServer server = new DefaultServer();
     server.onsocket(new Action<ServerSocket>() {
       @Override
       public void on(final ServerSocket socket) {
+        log.debug("socket.uri() is {}", socket.uri());
         socket.on("abort", new VoidAction() {
           @Override
           public void on() {

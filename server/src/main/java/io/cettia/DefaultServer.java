@@ -81,6 +81,8 @@ public class DefaultServer implements Server {
     options.put("heartbeat", "" + heartbeat);
     options.put("_heartbeat", "" + _heartbeat);
     final DefaultServerSocket socket = new DefaultServerSocket(options);
+    // socket.uri should be available on socket event #4
+    socket.transport = transport;
     // A temporal implementation of 'once'
     final AtomicBoolean done = new AtomicBoolean();
     socket.onopen(new VoidAction() {
