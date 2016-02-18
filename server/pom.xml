@@ -89,8 +89,8 @@
             </goals>
             <phase>generate-test-resources</phase>
             <configuration>
-              <nodeVersion>v0.10.38</nodeVersion>
-              <npmVersion>1.4.12</npmVersion>
+              <nodeVersion>v4.3.1</nodeVersion>
+              <npmVersion>3.7.4</npmVersion>
             </configuration>
           </execution>
           <execution>

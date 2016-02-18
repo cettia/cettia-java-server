@@ -1,9 +1,9 @@
 {
   "private": "true",
   "devDependencies": {
-    "cettia-protocol": "1.0.0-Alpha2",
-    "mocha": "2.2.1",
-    "chai": "2.1.2",
-    "minimist": "1.1.1"
+    "cettia-protocol": "cettia/cettia-protocol#cae58ad",
+    "mocha": "2.4.5",
+    "chai": "3.5.0",
+    "minimist": "1.2.0"
   }
 }
