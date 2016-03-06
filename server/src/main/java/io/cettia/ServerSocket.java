@@ -19,8 +19,6 @@ import io.cettia.asity.action.Action;
 import io.cettia.transport.ServerTransport;
 
 import java.net.URI;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -38,8 +36,7 @@ public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
   State state();
 
   /**
-   * A URI used to connect. To work with URI parts, use {@link URI} or
-   * something like that.
+   * A URI used to connect. To work with URI parts, use {@link URI} or something like that.
    */
   String uri();
 
@@ -51,41 +48,12 @@ public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
   /**
    * Adds a given event handler for a given event.
    * <p/>
-   * The allowed types for {@code T} are Java types corresponding to JSON
-   * types.
-   * <table>
-   * <thead>
-   * <tr>
-   * <th>JSON</th>
-   * <th>Java</th>
-   * </tr>
-   * </thead> <tbody>
-   * <tr>
-   * <td>Number</td>
-   * <td>{@link Integer} or {@link Double}</td>
-   * </tr>
-   * <tr>
-   * <td>String</td>
-   * <td>{@link String}</td>
-   * </tr>
-   * <tr>
-   * <td>Boolean</td>
-   * <td>{@link Boolean}</td>
-   * </tr>
-   * <tr>
-   * <td>Array</td>
-   * <td>{@link List}, {@code List<T>} in generic</td>
-   * </tr>
-   * <tr>
-   * <td>Object</td>
-   * <td>{@link Map}, {@code Map<String, T>} in generic</td>
-   * </tr>
-   * <tr>
-   * <td>null</td>
-   * <td>{@code null}, {@link Void} for convenience</td>
-   * </tr>
-   * </tbody>
-   * </table>
+   * The allowed types for {@code T} is determined by a format which is used to deserialize
+   * transport message. Now that format corresponds to
+   * <a href="https://github.com/FasterXML/jackson-databind">Jackson</a>'s data format. By default,
+   * built-in data format is used for text message, and
+   * <a href="https://github.com/msgpack/msgpack-java/tree/develop/msgpack-jackson">MessagePack data
+   * format</a> is used for binary message.
    * <p/>
    * If the counterpart sends an event with callback, {@code T} should be
    * {@link Reply}.
@@ -93,42 +61,40 @@ public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
   <T> ServerSocket on(String event, Action<T> action);
 
   /**
-   * Adds an open event handler to be called when the handshake is performed
-   * successfully and communication is possible.
+   * Adds an open event handler to be called when the handshake is performed successfully and
+   * communication is possible.
    * <p/>
    * Equivalent to <code>socket.on("open", action)</code>
    */
   ServerSocket onopen(Action<Void> action);
 
   /**
-   * Adds a close event handler to be called when the underlying transport is
-   * closed for any reason.
+   * Adds a close event handler to be called when the underlying transport is closed for any reason.
    * <p/>
    * Equivalent to <code>socket.on("close", action)</code>
    */
   ServerSocket onclose(Action<Void> action);
 
   /**
-   * Adds an error event handler to be called if there was any error on the
-   * socket.
+   * Adds an error event handler to be called if there was any error on the socket.
    * <p/>
    * Equivalent to <code>socket.on("error", action)</code>
    */
   ServerSocket onerror(Action<Throwable> action);
 
   /**
-   * Adds a cache event handler to be called if one of <code>send</code>
-   * methods is called when there is no connection. The given value is an
-   * array of arguments of {@link #send(String, Object, Action, Action)}.
+   * Adds a cache event handler to be called if one of <code>send</code> methods is called when
+   * there is no connection. The given value is an array of arguments of
+   * {@link #send(String, Object, Action, Action)}.
    * <p/>
    * Equivalent to <code>socket.on("cache", action)</code>
    */
   ServerSocket oncache(Action<Object[]> action);
 
   /**
-   * Adds a delete event handler to be called when the socket is in the closed
-   * state for a long time i.e. 1 minute and deleted from the server. As the
-   * end of the life cycle, <code>delete</code> event is called only once.
+   * Adds a delete event handler to be called when the socket is in the closed state for a long
+   * time i.e. 1 minute and deleted from the server. As the end of the life cycle,
+   * <code>delete</code> event is called only once.
    * <p/>
    * Equivalent to <code>socket.on("delete", action)</code>
    */
@@ -142,17 +108,14 @@ public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
   /**
    * Sends a given event with data attaching resolved callback.
    * <p/>
-   * For the allowed types for {@code T}, see
-   * {@link ServerSocket#on(String, Action)}.
+   * For the allowed types for {@code T}, see {@link ServerSocket#on(String, Action)}.
    */
   <T> ServerSocket send(String event, Object data, Action<T> resolved);
 
   /**
-   * Sends a given event with data attaching resolved callback and rejected
-   * callback.
+   * Sends a given event with data attaching resolved callback and rejected callback.
    * <p/>
-   * For the allowed types for {@code T}, see
-   * {@link ServerSocket#on(String, Action)}.
+   * For the allowed types for {@code T}, see {@link ServerSocket#on(String, Action)}.
    */
   <T, U> ServerSocket send(String event, Object data, Action<T> resolved, Action<U> rejected);
 
@@ -181,8 +144,8 @@ public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
     CLOSED,
 
     /**
-     * A state where it is deleted from the server because of long periods
-     * of disconnection. A deleted socket shouldn't be used.
+     * A state where it is deleted from the server because of long periods of disconnection. A
+     * deleted socket shouldn't be used.
      */
     DELETED
 

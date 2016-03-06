@@ -93,6 +93,11 @@
         <version>2.7.1-1</version>
       </dependency>
       <dependency>
+        <groupId>org.msgpack</groupId>
+        <artifactId>jackson-dataformat-msgpack</artifactId>
+        <version>0.8.3</version>
+      </dependency>
+      <dependency>
         <groupId>io.cettia.asity</groupId>
         <artifactId>asity-bridge-servlet3</artifactId>
         <version>${asity.version}</version>

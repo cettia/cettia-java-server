@@ -27,13 +27,12 @@ import java.util.Map;
 /**
  * {@link Server} implementation for clustering.
  * <p/>
- * With this implementation, {@code server.all(action)} have {@code action} be
- * executed with every socket in every server in the cluster.
+ * With this implementation, {@code server.all(action)} have {@code action} be executed with
+ * every socket in every server in the cluster.
  * <p/>
- * This implementation adopts the publish and subscribe model from Java Message
- * Service to support clustering. Here, the exchanged message represents method
- * invocation to be executed by every server in the cluster. The following
- * methods create such messages.
+ * This implementation adopts the publish and subscribe model from Java Message Service to
+ * support clustering. Here, the exchanged message represents method invocation to be executed by
+ * every server in the cluster. The following methods create such messages.
  * <ul>
  * <li>{@link Server#all()}</li>
  * <li>{@link Server#all(Action)}</li>
@@ -41,19 +40,17 @@ import java.util.Map;
  * <li>{@link Server#byTag(String, Action)}</li>
  * <li>{@link Server#byTag(String[], Action)}</li>
  * </ul>
- * A message created by this server is passed to
- * {@link ClusteredServer#onpublish(Action)} and a message created by other
- * servers is expected to be passed to {@link ClusteredServer#messageAction()}.
- * Therefore, what you need to do is to publish a message given through
- * {@link ClusteredServer#onpublish(Action)} to every server in the cluster and
- * to subscribe a published message by other servers to delegate it to
+ * A message created by this server is passed to {@link ClusteredServer#onpublish(Action)} and a
+ * message created by other servers is expected to be passed to
+ * {@link ClusteredServer#messageAction()}. Therefore, what you need to do is to publish a
+ * message given through {@link ClusteredServer#onpublish(Action)} to every server in the cluster
+ * and to subscribe a published message by other servers to delegate it to
  * {@link ClusteredServer#messageAction()}.
  * <p/>
  * Accordingly, such message must be able to be serialized and you have to pass
- * {@link Action} implementing {@link Serializable}. However, serialization of
- * inner classes doesn't work in some cases as expected so that always use
- * {@link Sentence} instead of action if possible unless you use lambda
- * expressions.
+ * {@link Action} implementing {@link Serializable}. However, serialization of inner classes
+ * doesn't work in some cases as expected so that always use {@link Sentence} instead of action
+ * if possible unless you use lambda expressions.
  *
  * @author Donghwan Kim
  * @see <a
@@ -104,8 +101,7 @@ public class ClusteredServer extends DefaultServer {
   }
 
   /**
-   * Adds an action to be called with a message to be published to every node
-   * in the cluster.
+   * Adds an action to be called with a message to be published to every node in the cluster.
    */
   public Server onpublish(Action<Map<String, Object>> action) {
     publishActions.add(action);
@@ -113,8 +109,7 @@ public class ClusteredServer extends DefaultServer {
   }
 
   /**
-   * An action to receive a message published from one of nodes in the
-   * cluster.
+   * An action to receive a message published from one of nodes in the cluster.
    */
   public Action<Map<String, Object>> messageAction() {
     return messageAction;

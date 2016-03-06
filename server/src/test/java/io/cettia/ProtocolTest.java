@@ -139,8 +139,7 @@ public class ProtocolTest {
         regSetup.addMapping("/setup");
         // For HTTP transport
         Servlet servlet = new AsityServlet().onhttp(httpTransportServer);
-        ServletRegistration.Dynamic reg = context.addServlet(AsityServlet.class.getName(),
-          servlet);
+        ServletRegistration.Dynamic reg = context.addServlet(AsityServlet.class.getName(), servlet);
         reg.setAsyncSupported(true);
         reg.addMapping("/cettia");
       }
@@ -152,7 +151,7 @@ public class ProtocolTest {
     // For WebSocket transport
     ServerContainer container = WebSocketServerContainerInitializer.configureContext(handler);
     ServerEndpointConfig config = ServerEndpointConfig.Builder.create(AsityServerEndpoint.class,
-      "/cettia")
+    "/cettia")
     .configurator(new Configurator() {
       @Override
       public <T> T getEndpointInstance(Class<T> endpointClass) throws InstantiationException {

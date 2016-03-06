@@ -15,17 +15,23 @@
  */
 package io.cettia;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.std.ByteArraySerializer;
+import com.fasterxml.jackson.databind.ser.std.ByteBufferSerializer;
 import io.cettia.asity.action.Action;
 import io.cettia.asity.action.Actions;
 import io.cettia.asity.action.ConcurrentActions;
 import io.cettia.asity.action.VoidAction;
 import io.cettia.transport.ServerTransport;
 import io.cettia.transport.http.HttpTransportServer;
+import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,7 +62,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class DefaultServer implements Server {
 
   private Map<String, DefaultServerSocket> sockets = new ConcurrentHashMap<>();
-  private Actions<ServerSocket> socketActions = new ConcurrentActions<ServerSocket>();
+  private Actions<ServerSocket> socketActions = new ConcurrentActions<>();
   private int heartbeat = 20000;
   private int _heartbeat = 5000;
 
@@ -153,9 +159,9 @@ public class DefaultServer implements Server {
   }
 
   /**
-   * A heartbeat interval in milliseconds to maintain a connection alive and
-   * prevent server from holding idle connections. The default is
-   * <code>20</code>s and should be larger than <code>5</code>s.
+   * A heartbeat interval in milliseconds to maintain a connection alive and prevent server from
+   * holding idle connections. The default is <code>20</code>s and should be larger than
+   * <code>5</code>s.
    */
   public void setHeartbeat(int heartbeat) {
     this.heartbeat = heartbeat;
@@ -172,7 +178,8 @@ public class DefaultServer implements Server {
     private final Map<String, String> options;
     String id = UUID.randomUUID().toString();
 
-    private ObjectMapper mapper = new ObjectMapper();
+    private ObjectMapper textMapper = new ObjectMapper();
+    private ObjectMapper binaryMapper = new ObjectMapper(new MessagePackFactory());
     private Set<String> tags = new CopyOnWriteArraySet<>();
     private AtomicInteger eventId = new AtomicInteger();
     private ConcurrentMap<String, Actions<Object>> actionsMap = new ConcurrentHashMap<>();
@@ -261,10 +268,9 @@ public class DefaultServer implements Server {
         @Override
         public void on() {
           transport = t;
-          transport.ontext(new Action<String>() {
+          final Action<Map<String, Object>> eventAction = new Action<Map<String, Object>>() {
             @Override
-            public void on(String text) {
-              final Map<String, Object> event = parseEvent(text);
+            public void on(final Map<String, Object> event) {
               Actions<Object> actions = actionsMap.get(event.get("type"));
               if (actions != null) {
                 if ((Boolean) event.get("reply")) {
@@ -297,7 +303,7 @@ public class DefaultServer implements Server {
 
                     private void sendReply(Object value, boolean exception) {
                       if (sent.compareAndSet(false, true)) {
-                        Map<String, Object> result = new LinkedHashMap<String, Object>();
+                        Map<String, Object> result = new LinkedHashMap<>();
                         result.put("id", event.get("id"));
                         result.put("data", value);
                         result.put("exception", exception);
@@ -308,6 +314,30 @@ public class DefaultServer implements Server {
                 } else {
                   actions.fire(event.get("data"));
                 }
+              }
+            }
+          };
+          transport.ontext(new Action<String>() {
+            @Override
+            @SuppressWarnings({"unchecked"})
+            public void on(String text) {
+              try {
+                eventAction.on(textMapper.readValue(text, Map.class));
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            }
+          });
+          transport.onbinary(new Action<ByteBuffer>() {
+            @Override
+            @SuppressWarnings({"unchecked"})
+            public void on(ByteBuffer binary) {
+              byte[] bytes = new byte[binary.remaining()];
+              binary.get(bytes);
+              try {
+                eventAction.on(binaryMapper.readValue(bytes, Map.class));
+              } catch (IOException e) {
+                throw new RuntimeException(e);
               }
             }
           });
@@ -428,22 +458,67 @@ public class DefaultServer implements Server {
         actionsMap.get("cache").fire(new Object[]{type, data, resolved, rejected});
       } else {
         String id = "" + eventId.incrementAndGet();
-        Map<String, Object> event = new LinkedHashMap<String, Object>();
+        Map<String, Object> event = new LinkedHashMap<>();
         event.put("id", id);
         event.put("type", type);
-        event.put("data", data);
         event.put("reply", resolved != null || rejected != null);
 
         if (resolved != null || rejected != null) {
-          Map<String, Action<Object>> cbs = new LinkedHashMap<String, Action<Object>>();
+          Map<String, Action<Object>> cbs = new LinkedHashMap<>();
           cbs.put("resolved", (Action<Object>) resolved);
           cbs.put("rejected", (Action<Object>) rejected);
           callbacksMap.put(id, cbs);
         }
-        String text = stringifyEvent(event);
-        transport.send(text);
+
+        ObjectMapper mapper = new ObjectMapper();
+        SimpleModule module = new SimpleModule();
+        final BooleanHolder containsBinary = new BooleanHolder();
+        module.addSerializer(byte[].class, new ByteArraySerializer() {
+          @Override
+          public void serialize(byte[] bytes, JsonGenerator gen, SerializerProvider provider) throws
+            IOException {
+            containsBinary.set(true);
+            super.serialize(bytes, gen, provider);
+          }
+        });
+        module.addSerializer(ByteBuffer.class, new ByteBufferSerializer() {
+          @Override
+          public void serialize(ByteBuffer bytes, JsonGenerator gen, SerializerProvider provider)
+            throws IOException {
+            containsBinary.set(true);
+            super.serialize(bytes, gen, provider);
+          }
+        });
+        mapper.registerModule(module);
+        event.put("data", mapper.convertValue(data, Object.class));
+
+        if (containsBinary.get()) {
+          try {
+            transport.send(ByteBuffer.wrap(binaryMapper.writeValueAsBytes(event)));
+          } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+          }
+        } else {
+          try {
+            transport.send(textMapper.writeValueAsString(event));
+          } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+          }
+        }
       }
       return this;
+    }
+
+    private static class BooleanHolder {
+      private boolean val;
+
+      public boolean get() {
+        return val;
+      }
+
+      public void set(boolean val) {
+        this.val = val;
+      }
     }
 
     @Override
@@ -473,23 +548,6 @@ public class DefaultServer implements Server {
     @Override
     public <T> T unwrap(Class<T> clazz) {
       return ServerTransport.class.isAssignableFrom(clazz) ? clazz.cast(transport) : null;
-    }
-
-    private Map<String, Object> parseEvent(String text) {
-      try {
-        return mapper.readValue(text, new TypeReference<Map<String, Object>>() {
-        });
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    private String stringifyEvent(Map<String, Object> event) {
-      try {
-        return mapper.writeValueAsString(event);
-      } catch (JsonProcessingException e) {
-        throw new RuntimeException(e);
-      }
     }
   }
 

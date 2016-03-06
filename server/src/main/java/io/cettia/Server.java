@@ -38,26 +38,22 @@ public interface Server extends Action<ServerTransport> {
   Server all(Action<ServerSocket> action);
 
   /**
-   * Returns a sentence that the socket tagged with the given tags in this
-   * server have to follow.
+   * Returns a sentence that the socket tagged with the given tags in this server have to follow.
    */
   Sentence byTag(String... names);
 
   /**
-   * Executes the given action retrieving the socket tagged with the given tag
-   * in this server.
+   * Executes the given action retrieving the socket tagged with the given tag in this server.
    */
   Server byTag(String name, Action<ServerSocket> action);
 
   /**
-   * Executes the given action retrieving the socket tagged with the given
-   * tags in this server.
+   * Executes the given action retrieving the socket tagged with the given tags in this server.
    */
   Server byTag(String[] names, Action<ServerSocket> action);
 
   /**
-   * Adds a socket event handler to be called when the socket has been created
-   * in this server.
+   * Adds a socket event handler to be called when the socket has been created in this server.
    */
   Server onsocket(Action<ServerSocket> action);
 
