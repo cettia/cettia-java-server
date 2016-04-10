@@ -337,21 +337,38 @@ public class DefaultServer implements Server {
               binary.get(bytes);
               try {
                 Map<String, Object> event = binaryMapper.readValue(bytes, Map.class);
-                if (event.get("data") instanceof MessagePackExtensionType) {
-                  MessagePackExtensionType ext = (MessagePackExtensionType) event.get("data");
-                  byte type = ext.getType();
-                  // msgpack-lite that is one of dependencies of cettia-javascript-client encodes
-                  // typed arrays to ext format but it's not meaningful in other languages
-                  // Regards them as bin format
-                  // See https://github.com/kawanet/msgpack-lite#extension-types
-                  if (0x11 <= type && type != 0x1B && type != 0x1C && type <= 0x1D) {
-                    event.put("data", ext.getData());
-                  }
-                }
+                event.put("data", replace(event.get("data")));
                 eventAction.on(event);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
+            }
+
+            // Only valid for value read by Jackson
+            @SuppressWarnings({"unchecked"})
+            private Object replace(Object value) {
+              if (value instanceof Map) {
+                Map<String, Object> map = (Map) value;
+                for (Map.Entry entry : map.entrySet()) {
+                  entry.setValue(replace(entry.getValue()));
+                }
+              } else if (value instanceof List) {
+                List<Object> list = (List) value;
+                for (int i = 0; i < list.size(); i++) {
+                  list.set(i, replace(list.get(i)));
+                }
+              } else if (value instanceof MessagePackExtensionType) {
+                MessagePackExtensionType ext = (MessagePackExtensionType) value;
+                byte type = ext.getType();
+                // msgpack-lite that is one of dependencies of cettia-javascript-client encodes
+                // typed arrays to ext format but it's not meaningful in other languages
+                // Regards them as bin format
+                // See https://github.com/kawanet/msgpack-lite#extension-types
+                if (0x11 <= type && type != 0x1B && type != 0x1C && type <= 0x1D) {
+                  value = ext.getData();
+                }
+              }
+              return value;
             }
           });
           transport.onerror(new Action<Throwable>() {
