@@ -28,6 +28,7 @@ import io.cettia.asity.action.ConcurrentActions;
 import io.cettia.asity.action.VoidAction;
 import io.cettia.transport.ServerTransport;
 import io.cettia.transport.http.HttpTransportServer;
+import org.msgpack.jackson.dataformat.MessagePackExtensionType;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 import java.io.IOException;
@@ -335,7 +336,19 @@ public class DefaultServer implements Server {
               byte[] bytes = new byte[binary.remaining()];
               binary.get(bytes);
               try {
-                eventAction.on(binaryMapper.readValue(bytes, Map.class));
+                Map<String, Object> event = binaryMapper.readValue(bytes, Map.class);
+                if (event.get("data") instanceof MessagePackExtensionType) {
+                  MessagePackExtensionType ext = (MessagePackExtensionType) event.get("data");
+                  byte type = ext.getType();
+                  // msgpack-lite that is one of dependencies of cettia-javascript-client encodes
+                  // typed arrays to ext format but it's not meaningful in other languages
+                  // Regards them as bin format
+                  // See https://github.com/kawanet/msgpack-lite#extension-types
+                  if (0x11 <= type && type != 0x1B && type != 0x1C && type <= 0x1D) {
+                    event.put("data", ext.getData());
+                  }
+                }
+                eventAction.on(event);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
