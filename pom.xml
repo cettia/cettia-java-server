@@ -14,9 +14,7 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.sonatype.oss</groupId>
@@ -26,7 +24,7 @@
   <groupId>io.cettia</groupId>
   <artifactId>cettia-server-parent</artifactId>
   <packaging>pom</packaging>
-  <version>1.0.0-Beta1-SNAPSHOT</version>
+  <version>1.0.0-Beta1</version>
   <name>Cettia Server</name>
   <url>http://cettia.io/projects/cettia-java-server/</url>
   <inceptionYear>2015</inceptionYear>
@@ -44,7 +42,7 @@
     <url>http://github.com/cettia/cettia-java-server</url>
     <connection>scm:git:git@github.com:cettia/cettia-java-server.git</connection>
     <developerConnection>scm:git:git@github.com:cettia/cettia-java-server.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>1.0.0-Beta1</tag>
   </scm>
   <developers>
     <developer>
