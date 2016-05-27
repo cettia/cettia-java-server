@@ -62,6 +62,9 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class DefaultServer implements Server {
 
+  private static final String TAG_HEARTBEAT_2 = "_heartbeat";
+  private static final String TAG_HEARTBEAT_1 = "heartbeat";
+
   private Map<String, DefaultServerSocket> sockets = new ConcurrentHashMap<>();
   private Actions<ServerSocket> socketActions = new ConcurrentActions<>();
   private int heartbeat = 20000;
@@ -85,8 +88,8 @@ public class DefaultServer implements Server {
 
   private DefaultServerSocket createSocket(ServerTransport transport) {
     Map<String, String> options = new LinkedHashMap<>();
-    options.put("heartbeat", Integer.toString(heartbeat));
-    options.put("_heartbeat", Integer.toString(_heartbeat));
+    options.put("TAG_HEARTBEAT_1", Integer.toString(heartbeat));
+    options.put("TAG_HEARTBEAT_2", Integer.toString(_heartbeat));
     final DefaultServerSocket socket = new DefaultServerSocket(options);
     // socket.uri should be available on socket event #4
     socket.transport = transport;
@@ -176,6 +179,11 @@ public class DefaultServer implements Server {
   }
 
   private static class DefaultServerSocket implements ServerSocket {
+    private static final String TAG_REPLY = "reply";
+    private static final String TAG_DELETE = "delete";
+    private static final String TAG_ERROR = "error";
+    private static final String TAG_CACHE = "cache";
+    private static final String TAG_CLOSE = "close";
     private final Map<String, String> options;
     String id = UUID.randomUUID().toString();
 
@@ -197,12 +205,12 @@ public class DefaultServer implements Server {
       this.options = opts;
       // Prepares actions for reserved events
       actionsMap.put("open", new ConcurrentActions<>());
-      actionsMap.put("heartbeat", new ConcurrentActions<>());
-      actionsMap.put("close", new ConcurrentActions<>());
-      actionsMap.put("cache", new ConcurrentActions<>());
-      actionsMap.put("error", new ConcurrentActions<>());
+      actionsMap.put(TAG_HEARTBEAT_1, new ConcurrentActions<>());
+      actionsMap.put(TAG_CLOSE, new ConcurrentActions<>());
+      actionsMap.put(TAG_CACHE, new ConcurrentActions<>());
+      actionsMap.put(TAG_ERROR, new ConcurrentActions<>());
       // delete event should have once and memory of true
-      actionsMap.put("delete", new ConcurrentActions<>(new Actions.Options().once(true).memory
+      actionsMap.put(TAG_DELETE, new ConcurrentActions<>(new Actions.Options().once(true).memory
         (true)));
 
       onopen(new VoidAction() {
@@ -216,12 +224,12 @@ public class DefaultServer implements Server {
           }
         }
       });
-      on("heartbeat", new VoidAction() {
+      on(TAG_HEARTBEAT_1, new VoidAction() {
         @Override
         public void on() {
           heartbeatFuture.cancel(false);
           heartbeatFuture = scheduleHeartbeat();
-          send("heartbeat");
+          send(TAG_HEARTBEAT_1);
         }
       });
       onclose(new VoidAction() {
@@ -232,7 +240,7 @@ public class DefaultServer implements Server {
           deleteFuture = scheduler.schedule(new Runnable() {
             @Override
             public void run() {
-              actionsMap.get("delete").fire();
+              actionsMap.get(TAG_DELETE).fire();
             }
           }, 1, TimeUnit.MINUTES);
         }
@@ -243,7 +251,7 @@ public class DefaultServer implements Server {
           state.set(State.DELETED);
         }
       });
-      on("reply", new Action<Map<String, Object>>() {
+      on(TAG_REPLY, new Action<Map<String, Object>>() {
         @Override
         public void on(Map<String, Object> info) {
           Map<String, Action<Object>> callbacks = callbacksMap.remove(info.get("id"));
@@ -258,10 +266,10 @@ public class DefaultServer implements Server {
       return scheduler.schedule(new Runnable() {
         @Override
         public void run() {
-          actionsMap.get("error").fire(new HeartbeatFailedException());
+          actionsMap.get(TAG_ERROR).fire(new HeartbeatFailedException());
           transport.close();
         }
-      }, Integer.parseInt(options.get("heartbeat")), TimeUnit.MILLISECONDS);
+      }, Integer.parseInt(options.get(TAG_HEARTBEAT_1)), TimeUnit.MILLISECONDS);
     }
 
     void handshake(final ServerTransport t) {
@@ -274,7 +282,7 @@ public class DefaultServer implements Server {
             public void on(final Map<String, Object> event) {
               Actions<Object> actions = actionsMap.get(event.get("type"));
               if (actions != null) {
-                if ((Boolean) event.get("reply")) {
+                if ((Boolean) event.get(TAG_REPLY)) {
                   final AtomicBoolean sent = new AtomicBoolean();
                   actions.fire(new Reply<Object>() {
                     @Override
@@ -308,7 +316,7 @@ public class DefaultServer implements Server {
                         result.put("id", event.get("id"));
                         result.put("data", value);
                         result.put("exception", exception);
-                        send("reply", result);
+                        send(TAG_REPLY, result);
                       }
                     }
                   });
@@ -374,20 +382,20 @@ public class DefaultServer implements Server {
           transport.onerror(new Action<Throwable>() {
             @Override
             public void on(Throwable error) {
-              actionsMap.get("error").fire(error);
+              actionsMap.get(TAG_ERROR).fire(error);
             }
           });
           transport.onclose(new VoidAction() {
             @Override
             public void on() {
-              actionsMap.get("close").fire();
+              actionsMap.get(TAG_CLOSE).fire();
             }
           });
 
           Map<String, String> headers = new LinkedHashMap<>();
           headers.put("sid", id);
-          headers.put("heartbeat", options.get("heartbeat"));
-          headers.put("_heartbeat", options.get("_heartbeat"));
+          headers.put(TAG_HEARTBEAT_1, options.get(TAG_HEARTBEAT_1));
+          headers.put(TAG_HEARTBEAT_2, options.get(TAG_HEARTBEAT_2));
           transport.send("?" + HttpTransportServer.formatQuery(headers));
           actionsMap.get("open").fire();
         }
@@ -437,22 +445,22 @@ public class DefaultServer implements Server {
 
     @Override
     public ServerSocket onclose(Action<Void> action) {
-      return on("close", action);
+      return on(TAG_CLOSE, action);
     }
 
     @Override
     public ServerSocket oncache(Action<Object[]> action) {
-      return on("cache", action);
+      return on(TAG_CACHE, action);
     }
 
     @Override
     public ServerSocket ondelete(Action<Void> action) {
-      return on("delete", action);
+      return on(TAG_DELETE, action);
     }
 
     @Override
     public ServerSocket onerror(Action<Throwable> action) {
-      return on("error", action);
+      return on(TAG_ERROR, action);
     }
 
     @SuppressWarnings("unchecked")
@@ -485,13 +493,13 @@ public class DefaultServer implements Server {
     public <T, U> ServerSocket send(String type, Object data, Action<T> resolved, Action<U>
       rejected) {
       if (state.get() != State.OPENED) {
-        actionsMap.get("cache").fire(new Object[]{type, data, resolved, rejected});
+        actionsMap.get(TAG_CACHE).fire(new Object[]{type, data, resolved, rejected});
       } else {
         String id = Integer.toString(eventId.incrementAndGet());
         Map<String, Object> event = new LinkedHashMap<>();
         event.put("id", id);
         event.put("type", type);
-        event.put("reply", resolved != null || rejected != null);
+        event.put(TAG_REPLY, resolved != null || rejected != null);
 
         if (resolved != null || rejected != null) {
           Map<String, Action<Object>> cbs = new LinkedHashMap<>();
@@ -559,7 +567,7 @@ public class DefaultServer implements Server {
         if (deleteFuture != null) {
           deleteFuture.cancel(false);
         }
-        actionsMap.get("delete").fire();
+        actionsMap.get(TAG_DELETE).fire();
       }
     }
 
