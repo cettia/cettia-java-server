@@ -305,11 +305,11 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
    */
   private static class StreamTransport extends BaseTransport {
 
-    private final static String text2KB = CharBuffer.allocate(2048).toString().replace('\0', ' ');
+    private final static String TEXT_2KB = CharBuffer.allocate(2048).toString().replace('\0', ' ');
 
     public StreamTransport(ServerHttpExchange http) {
       super(http);
-      Map<String, String> query = new LinkedHashMap<String, String>();
+      Map<String, String> query = new LinkedHashMap<>();
       query.put("id", id);
       http.onfinish(new VoidAction() {
         @Override
@@ -331,7 +331,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
       })
       .setHeader("content-type", "text/" + ("true".equals(params.get("sse")) ? "event-stream" :
         "plain") + "; charset=utf-8")
-      .write(text2KB + "\ndata: ?" + formatQuery(query) + "\n\n");
+      .write(TEXT_2KB + "\ndata: ?" + formatQuery(query) + "\n\n");
     }
 
     @Override
@@ -413,7 +413,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
       String when = parameters.get("when");
       switch (when) {
         case "open":
-          Map<String, String> query = new LinkedHashMap<String, String>();
+          Map<String, String> query = new LinkedHashMap<>();
           query.put("id", id);
           endWithMessage(http, "?" + formatQuery(query));
           break;
