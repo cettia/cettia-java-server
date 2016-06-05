@@ -41,8 +41,7 @@ public abstract class BaseServerTransport implements ServerTransport {
       logger.trace("{} has received a throwable {}", BaseServerTransport.this, throwable);
     }
   });
-  private AtomicReference<State> stateRef = new AtomicReference<BaseServerTransport.State>(State
-    .OPEN);
+  private AtomicReference<State> stateRef = new AtomicReference<>(State.OPEN);
   protected Actions<Void> closeActions = new ConcurrentActions<Void>(new Actions.Options().once
     (true).memory(true))
   .add(new Action<Void>() {
@@ -109,10 +108,8 @@ public abstract class BaseServerTransport implements ServerTransport {
   public void close() {
     logger.trace("{} has started to close the connection", this);
     State state = stateRef.get();
-    if (state != State.CLOSING && state != State.CLOSED) {
-      if (stateRef.compareAndSet(state, State.CLOSING)) {
+    if (state != State.CLOSING && state != State.CLOSED && stateRef.compareAndSet(state, State.CLOSING)) {
         doClose();
-      }
     }
   }
 
@@ -121,7 +118,7 @@ public abstract class BaseServerTransport implements ServerTransport {
   /**
    * Represents the state of the connection.
    */
-  static enum State {
+  enum State {
     OPEN, CLOSING, CLOSED
   }
 
