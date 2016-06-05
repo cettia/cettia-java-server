@@ -59,6 +59,9 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class HttpTransportServer implements TransportServer<ServerHttpExchange> {
 
+  private static final String CONTENT_TYPE = "content-type";
+  private static final String UTF_8 = "UTF-8";
+
   private final Logger log = LoggerFactory.getLogger(HttpTransportServer.class);
   private Map<String, BaseTransport> transports = new ConcurrentHashMap<>();
   private Actions<ServerTransport> transportActions = new ConcurrentActions<ServerTransport>()
@@ -91,11 +94,11 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     for (String param : params) {
       try {
         String[] pair = param.split("=", 2);
-        String name = URLDecoder.decode(pair[0], "UTF-8");
+        String name = URLDecoder.decode(pair[0], UTF_8);
         if (name.equals("")) {
           continue;
         }
-        map.put(name, pair.length > 1 ? URLDecoder.decode(pair[1], "UTF-8") : "");
+        map.put(name, pair.length > 1 ? URLDecoder.decode(pair[1], UTF_8) : "");
       } catch (UnsupportedEncodingException e) {
         throw new RuntimeException(e);
       }
@@ -110,9 +113,9 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     StringBuilder query = new StringBuilder();
     for (Entry<String, String> entry : params.entrySet()) {
       try {
-        query.append(URLEncoder.encode(entry.getKey(), "UTF-8"))
+        query.append(URLEncoder.encode(entry.getKey(), UTF_8))
         .append("=")
-        .append(URLEncoder.encode(entry.getValue(), "UTF-8"))
+        .append(URLEncoder.encode(entry.getValue(), UTF_8))
         .append("&");
       } catch (UnsupportedEncodingException e) {
         throw new RuntimeException(e);
@@ -129,7 +132,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     .setHeader("expires", "0")
     .setHeader("access-control-allow-origin", http.header("origin") != null ? http.header
       ("origin") : "*")
-    .setHeader("access-control-allow-headers", "content-type")
+    .setHeader("access-control-allow-headers", CONTENT_TYPE)
     .setHeader("access-control-allow-credentials", "true");
     switch (http.method()) {
       case OPTIONS: {
@@ -171,7 +174,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
             if (transport != null) {
               transport.close();
             }
-            http.setHeader("content-type", "text/javascript; charset=utf-8").end();
+            http.setHeader(CONTENT_TYPE, "text/javascript; charset=utf-8").end();
             break;
           }
           default:
@@ -183,7 +186,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
       }
       case POST: {
         final String id = params.get("id");
-        switch (http.header("content-type") == null ? "" : http.header("content-type")
+        switch (http.header(CONTENT_TYPE) == null ? "" : http.header(CONTENT_TYPE)
           .toLowerCase()) {
           case "text/plain; charset=utf-8":
           case "text/plain; charset=utf8":
@@ -329,7 +332,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
           closeActions.fire();
         }
       })
-      .setHeader("content-type", "text/" + ("true".equals(params.get("sse")) ? "event-stream" :
+      .setHeader(CONTENT_TYPE, "text/" + ("true".equals(params.get("sse")) ? "event-stream" :
         "plain") + "; charset=utf-8")
       .write(TEXT_2KB + "\ndata: ?" + formatQuery(query) + "\n\n");
     }
@@ -468,7 +471,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
           throw new RuntimeException(e);
         }
       }
-      http.setHeader("content-type", "text/" + (jsonp ? "javascript" : "plain") + "; " +
+      http.setHeader(CONTENT_TYPE, "text/" + (jsonp ? "javascript" : "plain") + "; " +
         "charset=utf-8").end(data);
     }
 
@@ -485,7 +488,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     // Regard it as http.endWithMessage
     private void endWithMessage(ServerHttpExchange http, ByteBuffer data) {
       endedWithMessage.set(true);
-      http.setHeader("content-type", "application/octet-stream").end(data);
+      http.setHeader(CONTENT_TYPE, "application/octet-stream").end(data);
     }
 
     @Override
