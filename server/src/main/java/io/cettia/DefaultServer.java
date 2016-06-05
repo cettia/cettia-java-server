@@ -85,8 +85,8 @@ public class DefaultServer implements Server {
 
   private DefaultServerSocket createSocket(ServerTransport transport) {
     Map<String, String> options = new LinkedHashMap<>();
-    options.put("heartbeat", "" + heartbeat);
-    options.put("_heartbeat", "" + _heartbeat);
+    options.put("heartbeat", Integer.toString(heartbeat));
+    options.put("_heartbeat", Integer.toString(_heartbeat));
     final DefaultServerSocket socket = new DefaultServerSocket(options);
     // socket.uri should be available on socket event #4
     socket.transport = transport;
@@ -487,7 +487,7 @@ public class DefaultServer implements Server {
       if (state.get() != State.OPENED) {
         actionsMap.get("cache").fire(new Object[]{type, data, resolved, rejected});
       } else {
-        String id = "" + eventId.incrementAndGet();
+        String id = Integer.toString(eventId.incrementAndGet());
         Map<String, Object> event = new LinkedHashMap<>();
         event.put("id", id);
         event.put("type", type);
