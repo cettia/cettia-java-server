@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 the original author or authors.
+ * Copyright 2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,6 +57,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @author Donghwan Kim
  */
+// TODO Extract constants
 public class HttpTransportServer implements TransportServer<ServerHttpExchange> {
 
   private final Logger log = LoggerFactory.getLogger(HttpTransportServer.class);
@@ -137,9 +138,9 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
         break;
       }
       case GET: {
-        switch (params.get("when")) {
+        switch (params.get("cettia-transport-when")) {
           case "open": {
-            String transportName = params.get("transport");
+            String transportName = params.get("cettia-transport-name");
             switch (transportName) {
               case "stream":
                 transportActions.fire(new StreamTransport(http));
@@ -155,7 +156,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
             break;
           }
           case "poll": {
-            String id = params.get("id");
+            String id = params.get("cettia-transport-id");
             BaseTransport transport = transports.get(id);
             if (transport != null && transport instanceof LongpollTransport) {
               ((LongpollTransport) transport).refresh(http);
@@ -166,7 +167,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
             break;
           }
           case "abort": {
-            String id = params.get("id");
+            String id = params.get("cettia-transport-id");
             BaseTransport transport = transports.get(id);
             if (transport != null) {
               transport.close();
@@ -175,14 +176,14 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
             break;
           }
           default:
-            log.error("when, {}, is not supported", params.get("when"));
+            log.error("when, {}, is not supported", params.get("cettia-transport-when"));
             http.setStatus(HttpStatus.NOT_IMPLEMENTED).end();
             break;
         }
         break;
       }
       case POST: {
-        final String id = params.get("id");
+        final String id = params.get("cettia-transport-id");
         switch (http.header("content-type") == null ? "" : http.header("content-type")
           .toLowerCase()) {
           case "text/plain; charset=utf-8":
@@ -310,7 +311,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     public StreamTransport(ServerHttpExchange http) {
       super(http);
       Map<String, String> query = new LinkedHashMap<>();
-      query.put("id", id);
+      query.put("cettia-transport-id", id);
       http.onfinish(new VoidAction() {
         @Override
         public void on() {
@@ -329,7 +330,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
           closeActions.fire();
         }
       })
-      .setHeader("content-type", "text/" + ("true".equals(params.get("sse")) ? "event-stream" :
+      .setHeader("content-type", "text/" + ("true".equals(params.get("cettia-transport-sse")) ? "event-stream" :
         "plain") + "; charset=utf-8")
       .write(TEXT_2KB + "\ndata: ?" + formatQuery(query) + "\n\n");
     }
@@ -384,7 +385,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
       http.onfinish(new VoidAction() {
         @Override
         public void on() {
-          if (parameters.get("when").equals("poll") && !endedWithMessage.get()) {
+          if (parameters.get("cettia-transport-when").equals("poll") && !endedWithMessage.get()) {
             closeActions.fire();
           } else {
             Timer timer = new Timer(true);
@@ -410,11 +411,11 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
             closeActions.fire();
           }
         });
-      String when = parameters.get("when");
+      String when = parameters.get("cettia-transport-when");
       switch (when) {
         case "open":
           Map<String, String> query = new LinkedHashMap<>();
-          query.put("id", id);
+          query.put("cettia-transport-id", id);
           endWithMessage(http, "?" + formatQuery(query));
           break;
         case "poll":
@@ -460,10 +461,10 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     // Regard it as http.endWithMessage
     private void endWithMessage(ServerHttpExchange http, String data) {
       endedWithMessage.set(true);
-      boolean jsonp = "true".equals(params.get("jsonp"));
+      boolean jsonp = "true".equals(params.get("cettia-transport-jsonp"));
       if (jsonp) {
         try {
-          data = params.get("callback") + "(" + mapper.writeValueAsString(data) + ");";
+          data = params.get("cettia-transport-callback") + "(" + mapper.writeValueAsString(data) + ");";
         } catch (JsonProcessingException e) {
           throw new RuntimeException(e);
         }

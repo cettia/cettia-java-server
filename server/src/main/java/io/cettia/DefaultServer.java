@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 the original author or authors.
+ * Copyright 2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @author Donghwan Kim
  */
+// TODO Extract constants
 public class DefaultServer implements Server {
 
   private Map<String, DefaultServerSocket> sockets = new ConcurrentHashMap<>();
@@ -71,10 +72,10 @@ public class DefaultServer implements Server {
   public void on(ServerTransport transport) {
     DefaultServerSocket socket = null;
     Map<String, String> headers = HttpTransportServer.parseQuery(transport.uri());
-    String sid = headers.get("sid");
+    String socketId = headers.get("cettia-id");
     // ConcurrentHashMap is not null-safe
-    if (sid != null) {
-      socket = sockets.get(sid);
+    if (socketId != null) {
+      socket = sockets.get(socketId);
     }
     if (socket == null) {
       socket = createSocket(transport);
@@ -385,9 +386,9 @@ public class DefaultServer implements Server {
           });
 
           Map<String, String> headers = new LinkedHashMap<>();
-          headers.put("sid", id);
-          headers.put("heartbeat", options.get("heartbeat"));
-          headers.put("_heartbeat", options.get("_heartbeat"));
+          headers.put("cettia-id", id);
+          headers.put("cettia-heartbeat", options.get("heartbeat"));
+          headers.put("cettia-_heartbeat", options.get("_heartbeat"));
           transport.send("?" + HttpTransportServer.formatQuery(headers));
           actionsMap.get("open").fire();
         }
