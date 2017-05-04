@@ -311,6 +311,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     public StreamTransport(ServerHttpExchange http) {
       super(http);
       Map<String, String> query = new LinkedHashMap<>();
+      query.put("cettia-transport-version", "1.0");
       query.put("cettia-transport-id", id);
       http.onfinish(new VoidAction() {
         @Override
@@ -415,6 +416,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
       switch (when) {
         case "open":
           Map<String, String> query = new LinkedHashMap<>();
+          query.put("cettia-transport-version", "1.0");
           query.put("cettia-transport-id", id);
           endWithMessage(http, "?" + formatQuery(query));
           break;

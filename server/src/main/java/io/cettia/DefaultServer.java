@@ -386,6 +386,7 @@ public class DefaultServer implements Server {
           });
 
           Map<String, String> headers = new LinkedHashMap<>();
+          headers.put("cettia-version", "1.0");
           headers.put("cettia-id", id);
           headers.put("cettia-heartbeat", options.get("heartbeat"));
           headers.put("cettia-_heartbeat", options.get("_heartbeat"));
