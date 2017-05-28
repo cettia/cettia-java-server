@@ -24,7 +24,7 @@
   <groupId>io.cettia</groupId>
   <artifactId>cettia-server-parent</artifactId>
   <packaging>pom</packaging>
-  <version>1.0.0-Beta2-SNAPSHOT</version>
+  <version>1.0.0-RC1-SNAPSHOT</version>
   <name>Cettia Server</name>
   <url>http://cettia.io/projects/cettia-java-server/</url>
   <inceptionYear>2015</inceptionYear>
