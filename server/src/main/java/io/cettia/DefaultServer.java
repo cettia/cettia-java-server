@@ -42,9 +42,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -68,6 +70,26 @@ public class DefaultServer implements Server {
   private int heartbeat = 20000;
   private int _heartbeat = 5000;
 
+  // This thread will be used for scheduling all heartbeats and related messaging
+  private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+    AtomicInteger threadId = new AtomicInteger(1);
+
+    @Override
+    public Thread newThread(Runnable r) {
+      return new Thread(r, "Cettia-Scheduler-" + threadId.getAndIncrement());
+    }
+  });
+
+  // This pool will be used to actually dispatch the events to connected clients
+  private final Executor workers = Executors.newCachedThreadPool(new ThreadFactory() {
+    AtomicInteger threadId = new AtomicInteger(1);
+
+    @Override
+    public Thread newThread(Runnable r) {
+      return new Thread(r, "Cettia-Worker-" + threadId.getAndIncrement());
+    }
+  });
+
   @Override
   public void on(ServerTransport transport) {
     DefaultServerSocket socket = null;
@@ -88,7 +110,7 @@ public class DefaultServer implements Server {
     Map<String, String> options = new LinkedHashMap<>();
     options.put("heartbeat", Integer.toString(heartbeat));
     options.put("_heartbeat", Integer.toString(_heartbeat));
-    final DefaultServerSocket socket = new DefaultServerSocket(options);
+    final DefaultServerSocket socket = new DefaultServerSocket(options, scheduler, workers);
     // socket.uri should be available on socket event #4
     socket.transport = transport;
     // A temporal implementation of 'once'
@@ -187,15 +209,20 @@ public class DefaultServer implements Server {
     private ConcurrentMap<String, Actions<Object>> actionsMap = new ConcurrentHashMap<>();
     private ConcurrentMap<String, Map<String, Action<Object>>> callbacksMap = new
       ConcurrentHashMap<>();
-    private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService scheduler;
+    private final Executor workers;
 
     private ServerTransport transport;
     private ScheduledFuture<?> deleteFuture;
     private ScheduledFuture<?> heartbeatFuture;
     private AtomicReference<State> state = new AtomicReference<>();
 
-    public DefaultServerSocket(Map<String, String> opts) {
+    public DefaultServerSocket(Map<String, String> opts, final ScheduledExecutorService scheduler, final Executor workers) {
       this.options = opts;
+
+      this.scheduler = scheduler;
+      this.workers = workers;
+
       // Prepares actions for reserved events
       actionsMap.put("open", new ConcurrentActions<>());
       actionsMap.put("heartbeat", new ConcurrentActions<>());
@@ -230,10 +257,17 @@ public class DefaultServer implements Server {
         public void on() {
           state.set(State.CLOSED);
           heartbeatFuture.cancel(false);
+          // Schedule delete for 1 min in the future, but do the work on a separate thread
           deleteFuture = scheduler.schedule(new Runnable() {
             @Override
             public void run() {
-              actionsMap.get("delete").fire();
+              // Here we pass the actual work off to a worker thread so the scheduler isn't blocked
+              workers.execute(new Runnable() {
+                @Override
+                public void run() {
+                  actionsMap.get("delete").fire();
+                }
+              });
             }
           }, 1, TimeUnit.MINUTES);
         }
@@ -256,11 +290,18 @@ public class DefaultServer implements Server {
     }
 
     private ScheduledFuture<?> scheduleHeartbeat() {
+      // Schedule heartbeat event for the future, but do work on a separate thread
       return scheduler.schedule(new Runnable() {
         @Override
         public void run() {
-          actionsMap.get("error").fire(new HeartbeatFailedException());
-          transport.close();
+          // Here we pass the actual work off to a worker thread so the scheduler isn't blocked
+          workers.execute(new Runnable() {
+            @Override
+            public void run() {
+              actionsMap.get("error").fire(new HeartbeatFailedException());
+              transport.close();
+            }
+          });
         }
       }, Integer.parseInt(options.get("heartbeat")), TimeUnit.MILLISECONDS);
     }
