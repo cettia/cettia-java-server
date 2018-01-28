@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright 2017 the original author or authors.
+  ~ Copyright 2018 the original author or authors.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@
     </license>
   </licenses>
   <scm>
-    <url>http://github.com/cettia/cettia-java-server</url>
+    <url>https://github.com/cettia/cettia-java-server</url>
     <connection>scm:git:git@github.com:cettia/cettia-java-server.git</connection>
     <developerConnection>scm:git:git@github.com:cettia/cettia-java-server.git</developerConnection>
     <tag>HEAD</tag>
@@ -190,11 +190,12 @@
         <version>2.10.4</version>
         <configuration>
           <bottom>
-            <![CDATA[Copyright ${project.inceptionYear}, <a href="https://cettia.io/projects/cettia-java-server/">The Cettia Project</a>]]></bottom>
+            <![CDATA[Copyright ${project.inceptionYear}, <a href="http://cettia.io/projects/cettia-java-server/">The Cettia Project</a>]]></bottom>
           <packagesheader>cettia</packagesheader>
           <links>
             <link>http://asity.cettia.io/${asity.version}/apidocs/</link>
           </links>
+          <additionalparam>-Xdoclint:none</additionalparam>
         </configuration>
       </plugin>
       <plugin>
