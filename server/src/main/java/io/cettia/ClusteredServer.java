@@ -69,10 +69,10 @@ public class ClusteredServer extends DefaultServer {
       Object[] args = (Object[]) map.get("args");
       switch (methodName) {
         case "all":
-          ClusteredServer.super.all((Action<ServerSocket>) args[0]);
+          ClusteredServer.super.all((SerializableAction<ServerSocket>) args[0]);
           break;
         case "byTag":
-          ClusteredServer.super.byTag((String[]) args[0], (Action<ServerSocket>) args[1]);
+          ClusteredServer.super.byTag((String[]) args[0], (SerializableAction<ServerSocket>) args[1]);
           break;
         default:
           throw new IllegalArgumentException("Illegal method name in processing message: "
@@ -82,13 +82,13 @@ public class ClusteredServer extends DefaultServer {
   };
 
   @Override
-  public Server all(Action<ServerSocket> action) {
+  public Server all(SerializableAction<ServerSocket> action) {
     publishMessage("all", action);
     return this;
   }
 
   @Override
-  public Server byTag(String[] names, Action<ServerSocket> action) {
+  public Server byTag(String[] names, SerializableAction<ServerSocket> action) {
     publishMessage("byTag", names, action);
     return this;
   }

@@ -29,9 +29,9 @@ import java.io.Serializable;
  */
 public class Sentence implements AbstractServerSocket<Sentence> {
 
-  private final Action<Action<ServerSocket>> serverAction;
+  private final Action<SerializableAction<ServerSocket>> serverAction;
 
-  Sentence(Action<Action<ServerSocket>> serverAction) {
+  Sentence(Action<SerializableAction<ServerSocket>> serverAction) {
     this.serverAction = serverAction;
   }
 
@@ -63,11 +63,8 @@ public class Sentence implements AbstractServerSocket<Sentence> {
     return this;
   }
 
-  private void execute(Action<ServerSocket> action) {
+  private void execute(SerializableAction<ServerSocket> action) {
     serverAction.on(action);
-  }
-
-  private static interface SerializableAction<T> extends Action<T>, Serializable {
   }
 
   private static class SendAction implements SerializableAction<ServerSocket> {

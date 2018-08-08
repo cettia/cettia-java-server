@@ -134,16 +134,16 @@ public class DefaultServer implements Server {
 
   @Override
   public Sentence all() {
-    return new Sentence(new Action<Action<ServerSocket>>() {
+    return new Sentence(new Action<SerializableAction<ServerSocket>>() {
       @Override
-      public void on(Action<ServerSocket> action) {
+      public void on(SerializableAction<ServerSocket> action) {
         all(action);
       }
     });
   }
 
   @Override
-  public Server all(Action<ServerSocket> action) {
+  public Server all(SerializableAction<ServerSocket> action) {
     for (ServerSocket socket : sockets.values()) {
       action.on(socket);
     }
@@ -152,21 +152,21 @@ public class DefaultServer implements Server {
 
   @Override
   public Sentence byTag(final String... names) {
-    return new Sentence(new Action<Action<ServerSocket>>() {
+    return new Sentence(new Action<SerializableAction<ServerSocket>>() {
       @Override
-      public void on(Action<ServerSocket> action) {
+      public void on(SerializableAction<ServerSocket> action) {
         byTag(names, action);
       }
     });
   }
 
   @Override
-  public Server byTag(String name, Action<ServerSocket> action) {
+  public Server byTag(String name, SerializableAction<ServerSocket> action) {
     return byTag(new String[]{name}, action);
   }
 
   @Override
-  public Server byTag(String[] names, Action<ServerSocket> action) {
+  public Server byTag(String[] names, SerializableAction<ServerSocket> action) {
     List<String> nameList = Arrays.asList(names);
     for (ServerSocket socket : sockets.values()) {
       if (socket.tags().containsAll(nameList)) {
