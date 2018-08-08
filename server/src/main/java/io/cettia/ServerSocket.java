@@ -31,6 +31,11 @@ import java.util.Set;
 public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
 
   /**
+   * The identifier of the socket.
+   */
+  String id();
+
+  /**
    * The current state of the socket.
    */
   State state();

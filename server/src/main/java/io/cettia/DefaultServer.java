@@ -119,11 +119,11 @@ public class DefaultServer implements Server {
       @Override
       public void on() {
         if (!done.getAndSet(true)) {
-          sockets.put(socket.id, socket);
+          sockets.put(socket.id(), socket);
           socket.ondelete(new VoidAction() {
             @Override
             public void on() {
-              sockets.remove(socket.id);
+              sockets.remove(socket.id());
             }
           });
         }
@@ -200,15 +200,14 @@ public class DefaultServer implements Server {
 
   private static class DefaultServerSocket implements ServerSocket {
     private final Map<String, String> options;
-    String id = UUID.randomUUID().toString();
+    private final String id = UUID.randomUUID().toString();
+    private final Set<String> tags = new CopyOnWriteArraySet<>();
 
     private ObjectMapper textMapper = new ObjectMapper();
     private ObjectMapper binaryMapper = new ObjectMapper(new MessagePackFactory());
-    private Set<String> tags = new CopyOnWriteArraySet<>();
     private AtomicInteger eventId = new AtomicInteger();
     private ConcurrentMap<String, Actions<Object>> actionsMap = new ConcurrentHashMap<>();
-    private ConcurrentMap<String, Map<String, Action<Object>>> callbacksMap = new
-      ConcurrentHashMap<>();
+    private ConcurrentMap<String, Map<String, Action<Object>>> callbacksMap = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler;
     private final Executor workers;
 
@@ -444,6 +443,11 @@ public class DefaultServer implements Server {
     }
 
     @Override
+    public String id() {
+      return id;
+    }
+
+    @Override
     public State state() {
       return state.get();
     }
@@ -621,6 +625,11 @@ public class DefaultServer implements Server {
     @Override
     public <T> T unwrap(Class<T> clazz) {
       return ServerTransport.class.isAssignableFrom(clazz) ? clazz.cast(transport) : null;
+    }
+
+    @Override
+    public String toString() {
+      return String.format("ServerSocket@%s[state=%s,tags=%s]", id, state, tags);
     }
   }
 
