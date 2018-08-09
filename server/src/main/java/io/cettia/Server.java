@@ -28,6 +28,16 @@ import io.cettia.transport.ServerTransport;
 public interface Server extends Action<ServerTransport> {
 
   /**
+   * Returns a sentence that matches the given predicate for sockets.
+   */
+  Sentence select(ServerSocketPredicate predicate);
+
+  /**
+   * Executes the given action retrieving sockets that matched the given predicate.
+   */
+  Server select(ServerSocketPredicate predicate, SerializableAction<ServerSocket> action);
+
+  /**
    * Returns a sentence that every socket in this server has to follow.
    */
   Sentence all();

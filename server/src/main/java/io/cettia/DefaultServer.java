@@ -133,6 +133,26 @@ public class DefaultServer implements Server {
   }
 
   @Override
+  public Sentence select(final ServerSocketPredicate predicate) {
+    return new Sentence(new Action<SerializableAction<ServerSocket>>() {
+      @Override
+      public void on(SerializableAction<ServerSocket> action) {
+        select(predicate, action);
+      }
+    });
+  }
+
+  @Override
+  public Server select(final ServerSocketPredicate predicate, SerializableAction<ServerSocket> action) {
+    for (ServerSocket socket : sockets.values()) {
+      if (predicate.test(socket)) {
+        action.on(socket);
+      }
+    }
+    return this;
+  }
+
+  @Override
   public Sentence all() {
     return new Sentence(new Action<SerializableAction<ServerSocket>>() {
       @Override
