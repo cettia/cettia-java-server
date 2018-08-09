@@ -35,6 +35,14 @@ public class Sentence implements AbstractServerSocket<Sentence> {
     this.serverAction = serverAction;
   }
 
+  /**
+   * Executes the given action with sockets hold by the sentence
+   */
+  public Sentence execute(SerializableAction<ServerSocket> action) {
+    serverAction.on(action);
+    return this;
+  }
+
   @Override
   public Sentence send(String event) {
     return send(event, null);
@@ -42,8 +50,7 @@ public class Sentence implements AbstractServerSocket<Sentence> {
 
   @Override
   public Sentence send(String event, Object data) {
-    execute(new SendAction(event, data));
-    return this;
+    return execute(new SendAction(event, data));
   }
 
   @Override
@@ -53,18 +60,12 @@ public class Sentence implements AbstractServerSocket<Sentence> {
 
   @Override
   public Sentence tag(String... names) {
-    execute(new TagAction(names));
-    return this;
+    return execute(new TagAction(names));
   }
 
   @Override
   public Sentence untag(String... names) {
-    execute(new UntagAction(names));
-    return this;
-  }
-
-  private void execute(SerializableAction<ServerSocket> action) {
-    serverAction.on(action);
+    return execute(new UntagAction(names));
   }
 
   private static class SendAction implements SerializableAction<ServerSocket> {
