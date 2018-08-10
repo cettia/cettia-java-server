@@ -68,8 +68,8 @@ public class ClusteredServer extends DefaultServer {
       String methodName = (String) map.get("method");
       Object[] args = (Object[]) map.get("args");
       switch (methodName) {
-        case "select":
-          ClusteredServer.super.select((ServerSocketPredicate) args[0], (SerializableAction<ServerSocket>) args[1]);
+        case "find":
+          ClusteredServer.super.find((ServerSocketPredicate) args[0], (SerializableAction<ServerSocket>) args[1]);
           break;
         case "all":
           ClusteredServer.super.all((SerializableAction<ServerSocket>) args[0]);
@@ -85,8 +85,8 @@ public class ClusteredServer extends DefaultServer {
   };
 
   @Override
-  public Server select(ServerSocketPredicate predicate, SerializableAction<ServerSocket> action) {
-    publishMessage("select", predicate, action);
+  public Server find(ServerSocketPredicate predicate, SerializableAction<ServerSocket> action) {
+    publishMessage("find", predicate, action);
     return this;
   }
 
