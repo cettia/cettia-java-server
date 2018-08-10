@@ -202,6 +202,7 @@ public class DefaultServer implements Server {
     private final Map<String, String> options;
     private final String id = UUID.randomUUID().toString();
     private final Set<String> tags = new CopyOnWriteArraySet<>();
+    private final Map<String, Object> attributes = new ConcurrentHashMap<>();
 
     private ObjectMapper textMapper = new ObjectMapper();
     private ObjectMapper binaryMapper = new ObjectMapper(new MessagePackFactory());
@@ -462,6 +463,11 @@ public class DefaultServer implements Server {
       return tags;
     }
 
+    @Override
+    public Map<String, Object> attributes() {
+      return attributes;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public <T> ServerSocket on(String event, Action<T> action) {
@@ -623,13 +629,30 @@ public class DefaultServer implements Server {
     }
 
     @Override
+    public <T> T get(String name) {
+      return (T) attributes.get(name);
+    }
+
+    @Override
+    public ServerSocket set(String name, Object value) {
+      attributes.put(name, value);
+      return this;
+    }
+
+    @Override
+    public ServerSocket remove(String name) {
+      attributes.remove(name);
+      return this;
+    }
+
+    @Override
     public <T> T unwrap(Class<T> clazz) {
       return ServerTransport.class.isAssignableFrom(clazz) ? clazz.cast(transport) : null;
     }
 
     @Override
     public String toString() {
-      return String.format("ServerSocket@%s[state=%s,tags=%s]", id, state, tags);
+      return String.format("ServerSocket@%s[state=%s,tags=%s,attributes=%s]", id, state, tags, attributes);
     }
   }
 

@@ -19,6 +19,7 @@ import io.cettia.asity.action.Action;
 import io.cettia.transport.ServerTransport;
 
 import java.net.URI;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -46,9 +47,29 @@ public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
   String uri();
 
   /**
-   * A modifiable set of tag names.
+   * A tags of this socket.
    */
   Set<String> tags();
+
+  /**
+   * An attributes of this socket.
+   */
+  Map<String, Object> attributes();
+
+  /**
+   * Returns the value mapped to the given name.
+   */
+  <T> T get(String name);
+
+  /**
+   * Associates the value with the given name in the socket.
+   */
+  ServerSocket set(String name, Object value);
+
+  /**
+   * Removes the mapping associated with the given name.
+   */
+  ServerSocket remove(String name);
 
   /**
    * Adds a given event handler for a given event.
