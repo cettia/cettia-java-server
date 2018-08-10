@@ -30,12 +30,12 @@ public interface Server extends Action<ServerTransport> {
   /**
    * Returns a sentence that matches the given predicate for sockets.
    */
-  Sentence select(ServerSocketPredicate predicate);
+  Sentence find(ServerSocketPredicate predicate);
 
   /**
    * Executes the given action retrieving sockets that matched the given predicate.
    */
-  Server select(ServerSocketPredicate predicate, SerializableAction<ServerSocket> action);
+  Server find(ServerSocketPredicate predicate, SerializableAction<ServerSocket> action);
 
   /**
    * Returns a sentence that every socket in this server has to follow.
