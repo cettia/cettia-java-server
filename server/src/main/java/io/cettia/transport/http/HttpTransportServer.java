@@ -168,9 +168,11 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
           }
           case "abort": {
             String id = params.get("cettia-transport-id");
-            BaseTransport transport = transports.get(id);
-            if (transport != null) {
-              transport.close();
+            if (id != null) {
+              BaseTransport transport = transports.get(id);
+              if (transport != null) {
+                transport.close();
+              }
             }
             http.setHeader("content-type", "text/javascript; charset=utf-8").end();
             break;
