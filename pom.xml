@@ -24,7 +24,7 @@
   <groupId>io.cettia</groupId>
   <artifactId>cettia-server-parent</artifactId>
   <packaging>pom</packaging>
-  <version>1.1.0-SNAPSHOT</version>
+  <version>1.1.0</version>
   <name>Cettia Server</name>
   <url>http://cettia.io/projects/cettia-java-server/</url>
   <inceptionYear>2015</inceptionYear>
@@ -42,7 +42,7 @@
     <url>https://github.com/cettia/cettia-java-server</url>
     <connection>scm:git:git@github.com:cettia/cettia-java-server.git</connection>
     <developerConnection>scm:git:git@github.com:cettia/cettia-java-server.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>1.1.0</tag>
   </scm>
   <developers>
     <developer>
