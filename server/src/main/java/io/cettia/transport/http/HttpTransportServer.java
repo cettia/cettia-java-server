@@ -20,7 +20,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cettia.asity.action.Action;
 import io.cettia.asity.action.Actions;
 import io.cettia.asity.action.ConcurrentActions;
-import io.cettia.asity.action.VoidAction;
 import io.cettia.asity.http.HttpStatus;
 import io.cettia.asity.http.ServerHttpExchange;
 import io.cettia.transport.BaseServerTransport;
@@ -35,6 +34,7 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -63,20 +63,14 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
   private final Logger log = LoggerFactory.getLogger(HttpTransportServer.class);
   private Map<String, BaseTransport> transports = new ConcurrentHashMap<>();
   private Actions<ServerTransport> transportActions = new ConcurrentActions<ServerTransport>()
-  .add(new Action<ServerTransport>() {
-    @Override
-    public void on(final ServerTransport t) {
-      final BaseTransport transport = (BaseTransport) t;
-      log.trace("{}'s request has opened", transport);
-      transports.put(transport.id(), transport);
-      transport.onclose(new VoidAction() {
-        @Override
-        public void on() {
-          log.trace("{}'s request has been closed", transport);
-          transports.remove(transport.id());
-        }
-      });
-    }
+  .add(t -> {
+    final BaseTransport transport = (BaseTransport) t;
+    log.trace("{}'s request has opened", transport);
+    transports.put(transport.id(), transport);
+    transport.onclose($ -> {
+      log.trace("{}'s request has been closed", transport);
+      transports.remove(transport.id());
+    });
   });
 
   /**
@@ -192,38 +186,28 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
           case "text/plain; charset=utf8":
           case "text/plain;charset=utf-8":
           case "text/plain;charset=utf8":
-            http.onbody(new Action<String>() {
-              @Override
-              public void on(String body) {
-                BaseTransport transport = transports.get(id);
-                if (transport != null) {
-                  transport.handleText(body.substring("data=".length()));
-                } else {
-                  log.error("A POST message arrived but no transport#{} is found", id);
-                  http.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
-                }
-                http.end();
+            http.onbody((String body) -> {
+              BaseTransport transport = transports.get(id);
+              if (transport != null) {
+                transport.handleText(body.substring("data=".length()));
+              } else {
+                log.error("A POST message arrived but no transport#{} is found", id);
+                http.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
               }
-
-              ;
+              http.end();
             })
             .readAsText();
             break;
           case "application/octet-stream":
-            http.onbody(new Action<ByteBuffer>() {
-              @Override
-              public void on(ByteBuffer body) {
-                BaseTransport transport = transports.get(id);
-                if (transport != null) {
-                  transport.handleBinary(body);
-                } else {
-                  log.error("A POST message arrived but no transport#{} is found", id);
-                  http.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
-                }
-                http.end();
+            http.onbody((ByteBuffer body) -> {
+              BaseTransport transport = transports.get(id);
+              if (transport != null) {
+                transport.handleBinary(body);
+              } else {
+                log.error("A POST message arrived but no transport#{} is found", id);
+                http.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
               }
-
-              ;
+              http.end();
             })
             .readAsBinary();
             break;
@@ -262,7 +246,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     protected final ServerHttpExchange http;
     protected final Map<String, String> params;
     protected String id = UUID.randomUUID().toString();
-    // For JSON processing in long polling and Base64 processing in streaming
+    // For JSON processing in long polling
     protected ObjectMapper mapper = new ObjectMapper();
 
     public BaseTransport(ServerHttpExchange http) {
@@ -315,24 +299,9 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
       Map<String, String> query = new LinkedHashMap<>();
       query.put("cettia-transport-version", "1.0");
       query.put("cettia-transport-id", id);
-      http.onfinish(new VoidAction() {
-        @Override
-        public void on() {
-          closeActions.fire();
-        }
-      })
-      .onerror(new Action<Throwable>() {
-        @Override
-        public void on(Throwable throwable) {
-          errorActions.fire(throwable);
-        }
-      })
-      .onclose(new VoidAction() {
-        @Override
-        public void on() {
-          closeActions.fire();
-        }
-      })
+      http.onfinish($ -> closeActions.fire())
+      .onerror(throwable -> errorActions.fire(throwable))
+      .onclose($ -> closeActions.fire())
       .setHeader("content-type", "text/" + ("true".equals(params.get("cettia-transport-sse")) ? "event-stream" :
         "plain") + "; charset=utf-8")
       .write(TEXT_2KB + "\ndata: ?" + formatQuery(query) + "\n\n");
@@ -345,7 +314,9 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
 
     @Override
     protected void doSend(ByteBuffer data) {
-      sendEventStreamMessage("2" + mapper.convertValue(data, String.class));
+      byte[] bytes = new byte[data.remaining()];
+      data.get(bytes);
+      sendEventStreamMessage("2" + Base64.getEncoder().encodeToString(bytes));
     }
 
     private synchronized void sendEventStreamMessage(String data) {
@@ -385,35 +356,22 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
 
     public void refresh(ServerHttpExchange http) {
       final Map<String, String> parameters = parseQuery(http.uri());
-      http.onfinish(new VoidAction() {
-        @Override
-        public void on() {
-          if (parameters.get("cettia-transport-when").equals("poll") && !endedWithMessage.get()) {
-            closeActions.fire();
-          } else {
-            Timer timer = new Timer(true);
-            timer.schedule(new TimerTask() {
-              @Override
-              public void run() {
-                closeActions.fire();
-              }
-            }, 3000);
-            closeTimer.set(timer);
-          }
+      http.onfinish($ -> {
+        if (parameters.get("cettia-transport-when").equals("poll") && !endedWithMessage.get()) {
+          closeActions.fire();
+        } else {
+          Timer timer = new Timer(true);
+          timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+              closeActions.fire();
+            }
+          }, 3000);
+          closeTimer.set(timer);
         }
       })
-      .onerror(new Action<Throwable>() {
-        @Override
-        public void on(Throwable throwable) {
-          errorActions.fire(throwable);
-        }
-      })
-      .onclose(new VoidAction() {
-          @Override
-          public void on() {
-            closeActions.fire();
-          }
-        });
+      .onerror(throwable -> errorActions.fire(throwable))
+      .onclose($ -> closeActions.fire());
       String when = parameters.get("cettia-transport-when");
       switch (when) {
         case "open":
@@ -468,7 +426,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
       boolean jsonp = "true".equals(params.get("cettia-transport-jsonp"));
       if (jsonp) {
         try {
-          data = params.get("cettia-transport-callback") + "(" + mapper.writeValueAsString(data) + ");";
+          data = params.get("cettia-transport-callback") + "(" +  mapper.writeValueAsString(data) + ");";
         } catch (JsonProcessingException e) {
           throw new RuntimeException(e);
         }

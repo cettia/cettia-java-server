@@ -24,5 +24,6 @@ import java.io.Serializable;
  *
  * @author Donghwan Kim
  */
+@FunctionalInterface
 public interface SerializableAction<T> extends Action<T>, Serializable {
 }

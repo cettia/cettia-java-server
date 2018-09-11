@@ -35,23 +35,15 @@ public abstract class BaseServerTransport implements ServerTransport {
   protected Actions<String> textActions = new ConcurrentActions<>();
   protected Actions<ByteBuffer> binaryActions = new ConcurrentActions<>();
   protected Actions<Throwable> errorActions = new ConcurrentActions<Throwable>()
-  .add(new Action<Throwable>() {
-    @Override
-    public void on(Throwable throwable) {
-      logger.trace("{} has received a throwable {}", BaseServerTransport.this, throwable);
-    }
-  });
+  .add(throwable -> logger.trace("{} has received a throwable {}", BaseServerTransport.this, throwable));
   private AtomicReference<State> stateRef = new AtomicReference<>(State.OPEN);
   protected Actions<Void> closeActions = new ConcurrentActions<Void>(new Actions.Options().once
     (true).memory(true))
-  .add(new Action<Void>() {
-    @Override
-    public void on(Void _) {
-      logger.trace("{} has been closed", BaseServerTransport.this);
-      stateRef.set(State.CLOSED);
-      textActions.disable();
-      errorActions.disable();
-    }
+  .add($ -> {
+    logger.trace("{} has been closed", BaseServerTransport.this);
+    stateRef.set(State.CLOSED);
+    textActions.disable();
+    errorActions.disable();
   });
 
   @Override

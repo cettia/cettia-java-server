@@ -25,7 +25,6 @@ import com.fasterxml.jackson.databind.ser.std.ByteBufferSerializer;
 import io.cettia.asity.action.Action;
 import io.cettia.asity.action.Actions;
 import io.cettia.asity.action.ConcurrentActions;
-import io.cettia.asity.action.VoidAction;
 import io.cettia.transport.ServerTransport;
 import io.cettia.transport.http.HttpTransportServer;
 import org.msgpack.jackson.dataformat.MessagePackExtensionType;
@@ -115,18 +114,10 @@ public class DefaultServer implements Server {
     socket.transport = transport;
     // A temporal implementation of 'once'
     final AtomicBoolean done = new AtomicBoolean();
-    socket.onopen(new VoidAction() {
-      @Override
-      public void on() {
-        if (!done.getAndSet(true)) {
-          sockets.put(socket.id(), socket);
-          socket.ondelete(new VoidAction() {
-            @Override
-            public void on() {
-              sockets.remove(socket.id());
-            }
-          });
-        }
+    socket.onopen($ -> {
+      if (!done.getAndSet(true)) {
+        sockets.put(socket.id(), socket);
+        socket.ondelete($1 -> sockets.remove(socket.id()));
       }
     });
     return socket;
@@ -134,12 +125,7 @@ public class DefaultServer implements Server {
 
   @Override
   public Sentence find(final ServerSocketPredicate predicate) {
-    return new Sentence(new Action<SerializableAction<ServerSocket>>() {
-      @Override
-      public void on(SerializableAction<ServerSocket> action) {
-        find(predicate, action);
-      }
-    });
+    return new Sentence(action -> find(predicate, action));
   }
 
   @Override
@@ -154,12 +140,7 @@ public class DefaultServer implements Server {
 
   @Override
   public Sentence all() {
-    return new Sentence(new Action<SerializableAction<ServerSocket>>() {
-      @Override
-      public void on(SerializableAction<ServerSocket> action) {
-        all(action);
-      }
-    });
+    return new Sentence(action -> all(action));
   }
 
   @Override
@@ -172,12 +153,7 @@ public class DefaultServer implements Server {
 
   @Override
   public Sentence byTag(final String... names) {
-    return new Sentence(new Action<SerializableAction<ServerSocket>>() {
-      @Override
-      public void on(SerializableAction<ServerSocket> action) {
-        byTag(names, action);
-      }
-    });
+    return new Sentence(action -> byTag(names, action));
   }
 
   @Override
@@ -253,207 +229,157 @@ public class DefaultServer implements Server {
       actionsMap.put("delete", new ConcurrentActions<>(new Actions.Options().once(true).memory
         (true)));
 
-      onopen(new VoidAction() {
-        @Override
-        public void on() {
-          state.set(State.OPENED);
-          heartbeatFuture = scheduleHeartbeat();
-          // deleteFuture is null only on the first open event
-          if (deleteFuture != null) {
-            deleteFuture.cancel(false);
-          }
+      onopen($ -> {
+        state.set(State.OPENED);
+        heartbeatFuture = scheduleHeartbeat();
+        // deleteFuture is null only on the first open event
+        if (deleteFuture != null) {
+          deleteFuture.cancel(false);
         }
       });
-      on("heartbeat", new VoidAction() {
-        @Override
-        public void on() {
-          heartbeatFuture.cancel(false);
-          heartbeatFuture = scheduleHeartbeat();
-          send("heartbeat");
-        }
+      on("heartbeat", $ -> {
+        heartbeatFuture.cancel(false);
+        heartbeatFuture = scheduleHeartbeat();
+        send("heartbeat");
       });
-      onclose(new VoidAction() {
-        @Override
-        public void on() {
-          state.set(State.CLOSED);
-          heartbeatFuture.cancel(false);
-          // Schedule delete for 1 min in the future, but do the work on a separate thread
-          deleteFuture = scheduler.schedule(new Runnable() {
-            @Override
-            public void run() {
-              // Here we pass the actual work off to a worker thread so the scheduler isn't blocked
-              workers.execute(new Runnable() {
-                @Override
-                public void run() {
-                  actionsMap.get("delete").fire();
-                }
-              });
-            }
-          }, 1, TimeUnit.MINUTES);
-        }
+      onclose($ -> {
+        state.set(State.CLOSED);
+        heartbeatFuture.cancel(false);
+        // Schedule delete for 1 min in the future, but do the work on a separate thread
+        deleteFuture = scheduler.schedule(() -> {
+          // Here we pass the actual work off to a worker thread so the scheduler isn't blocked
+          workers.execute(() -> actionsMap.get("delete").fire());
+        }, 1, TimeUnit.MINUTES);
       });
-      ondelete(new VoidAction() {
-        @Override
-        public void on() {
-          state.set(State.DELETED);
-        }
-      });
-      on("reply", new Action<Map<String, Object>>() {
-        @Override
-        public void on(Map<String, Object> info) {
-          Map<String, Action<Object>> callbacks = callbacksMap.remove(info.get("id"));
-          Action<Object> action = (Boolean) info.get("exception") ? callbacks.get("rejected") :
-            callbacks.get("resolved");
-          action.on(info.get("data"));
-        }
+      ondelete($ -> state.set(State.DELETED));
+      on("reply", (Map<String, Object> info) -> {
+        Map<String, Action<Object>> callbacks = callbacksMap.remove(info.get("id"));
+        Action<Object> action = (Boolean) info.get("exception") ? callbacks.get("rejected") :
+          callbacks.get("resolved");
+        action.on(info.get("data"));
       });
     }
 
     private ScheduledFuture<?> scheduleHeartbeat() {
       // Schedule heartbeat event for the future, but do work on a separate thread
-      return scheduler.schedule(new Runnable() {
-        @Override
-        public void run() {
-          // Here we pass the actual work off to a worker thread so the scheduler isn't blocked
-          workers.execute(new Runnable() {
-            @Override
-            public void run() {
-              actionsMap.get("error").fire(new HeartbeatFailedException());
-              transport.close();
-            }
-          });
-        }
+      return scheduler.schedule(() -> {
+        // Here we pass the actual work off to a worker thread so the scheduler isn't blocked
+        workers.execute(() -> {
+          actionsMap.get("error").fire(new HeartbeatFailedException());
+          transport.close();
+        });
       }, Integer.parseInt(options.get("heartbeat")), TimeUnit.MILLISECONDS);
     }
 
     void handshake(final ServerTransport t) {
-      Action<Void> handshakeAction = new VoidAction() {
-        @Override
-        public void on() {
-          transport = t;
-          final Action<Map<String, Object>> eventAction = new Action<Map<String, Object>>() {
-            @Override
-            public void on(final Map<String, Object> event) {
-              Actions<Object> actions = actionsMap.get(event.get("type"));
-              if (actions != null) {
-                if ((Boolean) event.get("reply")) {
-                  final AtomicBoolean sent = new AtomicBoolean();
-                  actions.fire(new Reply<Object>() {
-                    @Override
-                    public Object data() {
-                      return event.get("data");
-                    }
-
-                    @Override
-                    public void resolve() {
-                      resolve(null);
-                    }
-
-                    @Override
-                    public void resolve(Object value) {
-                      sendReply(value, false);
-                    }
-
-                    @Override
-                    public void reject() {
-                      reject(null);
-                    }
-
-                    @Override
-                    public void reject(Object value) {
-                      sendReply(value, true);
-                    }
-
-                    private void sendReply(Object value, boolean exception) {
-                      if (sent.compareAndSet(false, true)) {
-                        Map<String, Object> result = new LinkedHashMap<>();
-                        result.put("id", event.get("id"));
-                        result.put("data", value);
-                        result.put("exception", exception);
-                        send("reply", result);
-                      }
-                    }
-                  });
-                } else {
-                  actions.fire(event.get("data"));
+      Action<Void> handshakeAction = $ -> {
+        transport = t;
+        final Action<Map<String, Object>> eventAction = event -> {
+          Actions<Object> actions = actionsMap.get(event.get("type"));
+          if (actions != null) {
+            if ((Boolean) event.get("reply")) {
+              final AtomicBoolean sent = new AtomicBoolean();
+              actions.fire(new Reply<Object>() {
+                @Override
+                public Object data() {
+                  return event.get("data");
                 }
+
+                @Override
+                public void resolve() {
+                  resolve(null);
+                }
+
+                @Override
+                public void resolve(Object value) {
+                  sendReply(value, false);
+                }
+
+                @Override
+                public void reject() {
+                  reject(null);
+                }
+
+                @Override
+                public void reject(Object value) {
+                  sendReply(value, true);
+                }
+
+                private void sendReply(Object value, boolean exception) {
+                  if (sent.compareAndSet(false, true)) {
+                    Map<String, Object> result = new LinkedHashMap<>();
+                    result.put("id", event.get("id"));
+                    result.put("data", value);
+                    result.put("exception", exception);
+                    send("reply", result);
+                  }
+                }
+              });
+            } else {
+              actions.fire(event.get("data"));
+            }
+          }
+        };
+        transport.ontext(text -> {
+          try {
+            eventAction.on(textMapper.readValue(text, Map.class));
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
+        // FIXME convert it to lambda
+        transport.onbinary(new Action<ByteBuffer>() {
+          @Override
+          @SuppressWarnings({"unchecked"})
+          public void on(ByteBuffer binary) {
+            byte[] bytes = new byte[binary.remaining()];
+            binary.get(bytes);
+            try {
+              Map<String, Object> event = binaryMapper.readValue(bytes, Map.class);
+              event.put("data", replace(event.get("data")));
+              eventAction.on(event);
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          }
+
+          // Only valid for value read by Jackson
+          @SuppressWarnings({"unchecked"})
+          private Object replace(Object value) {
+            if (value instanceof Map) {
+              Map<String, Object> map = (Map) value;
+              for (Map.Entry entry : map.entrySet()) {
+                entry.setValue(replace(entry.getValue()));
+              }
+            } else if (value instanceof List) {
+              List<Object> list = (List) value;
+              for (int i = 0; i < list.size(); i++) {
+                list.set(i, replace(list.get(i)));
+              }
+            } else if (value instanceof MessagePackExtensionType) {
+              MessagePackExtensionType ext = (MessagePackExtensionType) value;
+              byte type = ext.getType();
+              // msgpack-lite that is one of dependencies of cettia-javascript-client encodes
+              // typed arrays to ext format but it's not meaningful in other languages
+              // Regards them as bin format
+              // See https://github.com/kawanet/msgpack-lite#extension-types
+              if (0x11 <= type && type != 0x1B && type != 0x1C && type <= 0x1D) {
+                value = ext.getData();
               }
             }
-          };
-          transport.ontext(new Action<String>() {
-            @Override
-            @SuppressWarnings({"unchecked"})
-            public void on(String text) {
-              try {
-                eventAction.on(textMapper.readValue(text, Map.class));
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            }
-          });
-          transport.onbinary(new Action<ByteBuffer>() {
-            @Override
-            @SuppressWarnings({"unchecked"})
-            public void on(ByteBuffer binary) {
-              byte[] bytes = new byte[binary.remaining()];
-              binary.get(bytes);
-              try {
-                Map<String, Object> event = binaryMapper.readValue(bytes, Map.class);
-                event.put("data", replace(event.get("data")));
-                eventAction.on(event);
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            }
+            return value;
+          }
+        });
+        transport.onerror(error -> actionsMap.get("error").fire(error));
+        transport.onclose($1 -> actionsMap.get("close").fire());
 
-            // Only valid for value read by Jackson
-            @SuppressWarnings({"unchecked"})
-            private Object replace(Object value) {
-              if (value instanceof Map) {
-                Map<String, Object> map = (Map) value;
-                for (Map.Entry entry : map.entrySet()) {
-                  entry.setValue(replace(entry.getValue()));
-                }
-              } else if (value instanceof List) {
-                List<Object> list = (List) value;
-                for (int i = 0; i < list.size(); i++) {
-                  list.set(i, replace(list.get(i)));
-                }
-              } else if (value instanceof MessagePackExtensionType) {
-                MessagePackExtensionType ext = (MessagePackExtensionType) value;
-                byte type = ext.getType();
-                // msgpack-lite that is one of dependencies of cettia-javascript-client encodes
-                // typed arrays to ext format but it's not meaningful in other languages
-                // Regards them as bin format
-                // See https://github.com/kawanet/msgpack-lite#extension-types
-                if (0x11 <= type && type != 0x1B && type != 0x1C && type <= 0x1D) {
-                  value = ext.getData();
-                }
-              }
-              return value;
-            }
-          });
-          transport.onerror(new Action<Throwable>() {
-            @Override
-            public void on(Throwable error) {
-              actionsMap.get("error").fire(error);
-            }
-          });
-          transport.onclose(new VoidAction() {
-            @Override
-            public void on() {
-              actionsMap.get("close").fire();
-            }
-          });
-
-          Map<String, String> headers = new LinkedHashMap<>();
-          headers.put("cettia-version", "1.0");
-          headers.put("cettia-id", id);
-          headers.put("cettia-heartbeat", options.get("heartbeat"));
-          headers.put("cettia-_heartbeat", options.get("_heartbeat"));
-          transport.send("?" + HttpTransportServer.formatQuery(headers));
-          actionsMap.get("open").fire();
-        }
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("cettia-version", "1.0");
+        headers.put("cettia-id", id);
+        headers.put("cettia-heartbeat", options.get("heartbeat"));
+        headers.put("cettia-_heartbeat", options.get("_heartbeat"));
+        transport.send("?" + HttpTransportServer.formatQuery(headers));
+        actionsMap.get("open").fire();
       };
 
       if (state.get() == State.OPENED) {

@@ -61,26 +61,22 @@ import java.util.Map;
 public class ClusteredServer extends DefaultServer {
 
   private Actions<Map<String, Object>> publishActions = new ConcurrentActions<>();
-  private Action<Map<String, Object>> messageAction = new Action<Map<String, Object>>() {
-    @SuppressWarnings("unchecked")
-    @Override
-    public void on(Map<String, Object> map) {
-      String methodName = (String) map.get("method");
-      Object[] args = (Object[]) map.get("args");
-      switch (methodName) {
-        case "find":
-          ClusteredServer.super.find((ServerSocketPredicate) args[0], (SerializableAction<ServerSocket>) args[1]);
-          break;
-        case "all":
-          ClusteredServer.super.all((SerializableAction<ServerSocket>) args[0]);
-          break;
-        case "byTag":
-          ClusteredServer.super.byTag((String[]) args[0], (SerializableAction<ServerSocket>) args[1]);
-          break;
-        default:
-          throw new IllegalArgumentException("Illegal method name in processing message: "
-            + methodName);
-      }
+  private Action<Map<String, Object>> messageAction = map -> {
+    String methodName = (String) map.get("method");
+    Object[] args = (Object[]) map.get("args");
+    switch (methodName) {
+      case "find":
+        ClusteredServer.super.find((ServerSocketPredicate) args[0], (SerializableAction<ServerSocket>) args[1]);
+        break;
+      case "all":
+        ClusteredServer.super.all((SerializableAction<ServerSocket>) args[0]);
+        break;
+      case "byTag":
+        ClusteredServer.super.byTag((String[]) args[0], (SerializableAction<ServerSocket>) args[1]);
+        break;
+      default:
+        throw new IllegalArgumentException("Illegal method name in processing message: "
+          + methodName);
     }
   };
 

@@ -18,7 +18,6 @@ package io.cettia.transport.websocket;
 import io.cettia.asity.action.Action;
 import io.cettia.asity.action.Actions;
 import io.cettia.asity.action.ConcurrentActions;
-import io.cettia.asity.action.VoidAction;
 import io.cettia.asity.websocket.ServerWebSocket;
 import io.cettia.transport.BaseServerTransport;
 import io.cettia.transport.ServerTransport;
@@ -42,17 +41,9 @@ public class WebSocketTransportServer implements TransportServer<ServerWebSocket
 
   private final Logger log = LoggerFactory.getLogger(WebSocketTransportServer.class);
   private Actions<ServerTransport> transportActions = new ConcurrentActions<ServerTransport>()
-    .add(new Action<ServerTransport>() {
-      @Override
-      public void on(final ServerTransport transport) {
-        log.trace("{}'s request has opened", transport);
-        transport.onclose(new VoidAction() {
-          @Override
-          public void on() {
-            log.trace("{}'s request has been closed", transport);
-          }
-        });
-      }
+    .add(transport -> {
+      log.trace("{}'s request has opened", transport);
+      transport.onclose($ -> log.trace("{}'s request has been closed", transport));
     });
 
   @Override
@@ -77,30 +68,10 @@ public class WebSocketTransportServer implements TransportServer<ServerWebSocket
 
     public DefaultTransport(ServerWebSocket ws) {
       this.ws = ws;
-      ws.onerror(new Action<Throwable>() {
-        @Override
-        public void on(Throwable throwable) {
-          errorActions.fire(throwable);
-        }
-      })
-      .onclose(new VoidAction() {
-        @Override
-        public void on() {
-          closeActions.fire();
-        }
-      })
-      .ontext(new Action<String>() {
-        @Override
-        public void on(String data) {
-          textActions.fire(data);
-        }
-      })
-      .onbinary(new Action<ByteBuffer>() {
-          @Override
-          public void on(ByteBuffer data) {
-            binaryActions.fire(data);
-          }
-        });
+      ws.onerror(throwable -> errorActions.fire(throwable))
+      .onclose($ -> closeActions.fire())
+      .ontext(data -> textActions.fire(data))
+      .onbinary(data -> binaryActions.fire(data));
     }
 
     @Override

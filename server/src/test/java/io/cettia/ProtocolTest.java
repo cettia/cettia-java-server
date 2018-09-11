@@ -16,8 +16,6 @@
 package io.cettia;
 
 import io.cettia.ServerSocket.Reply;
-import io.cettia.asity.action.Action;
-import io.cettia.asity.action.VoidAction;
 import io.cettia.asity.bridge.jwa1.AsityServerEndpoint;
 import io.cettia.asity.bridge.servlet3.AsityServlet;
 import io.cettia.transport.http.HttpTransportServer;
@@ -35,7 +33,6 @@ import javax.servlet.Servlet;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
-import javax.servlet.ServletException;
 import javax.servlet.ServletRegistration;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -43,7 +40,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpointConfig;
 import javax.websocket.server.ServerEndpointConfig.Configurator;
-import java.io.IOException;
 import java.util.Map;
 
 public class ProtocolTest {
@@ -53,60 +49,35 @@ public class ProtocolTest {
   @Test
   public void protocol() throws Exception {
     final DefaultServer server = new DefaultServer();
-    server.onsocket(new Action<ServerSocket>() {
-      @Override
-      public void on(final ServerSocket socket) {
-        log.debug("socket.uri() is {}", socket.uri());
-        socket.on("abort", new VoidAction() {
-          @Override
-          public void on() {
-            socket.close();
-          }
-        })
-        .on("echo", new Action<Object>() {
-          @Override
-          public void on(Object data) {
-            socket.send("echo", data);
-          }
-        })
-        .on("/reply/inbound", new Action<Reply<Map<String, Object>>>() {
-          @Override
-          public void on(Reply<Map<String, Object>> reply) {
-            Map<String, Object> data = reply.data();
-            switch ((String) data.get("type")) {
-              case "resolved":
-                reply.resolve(data.get("data"));
-                break;
-              case "rejected":
-                reply.reject(data.get("data"));
-                break;
-            }
-          }
-        })
-        .on("/reply/outbound", new Action<Map<String, Object>>() {
-          @Override
-          public void on(Map<String, Object> data) {
-            switch ((String) data.get("type")) {
-              case "resolved":
-                socket.send("test", data.get("data"), new Action<Object>() {
-                  @Override
-                  public void on(Object data) {
-                    socket.send("done", data);
-                  }
-                });
-                break;
-              case "rejected":
-                socket.send("test", data.get("data"), null, new Action<Object>() {
-                  @Override
-                  public void on(Object data) {
-                    socket.send("done", data);
-                  }
-                });
-                break;
-            }
-          }
-        });
-      }
+    server.onsocket(socket -> {
+      log.debug("socket.uri() is {}", socket.uri());
+      socket.on("abort", $ -> socket.close())
+      .on("echo", data -> socket.send("echo", data))
+      .on("/reply/inbound", (Reply<Map<String, Object>> reply) -> {
+        Map<String, Object> data = reply.data();
+        switch ((String) data.get("type")) {
+          case "resolved":
+            reply.resolve(data.get("data"));
+            break;
+          case "rejected":
+            reply.reject(data.get("data"));
+            break;
+        }
+      })
+      .on("/reply/outbound", (Map<String, Object> data) -> {
+        switch ((String) data.get("type")) {
+          case "resolved":
+            socket.send("test", data.get("data"), resolvedData -> socket.send("done",
+              resolvedData));
+            break;
+          case "rejected":
+            socket.send("test", data.get("data"), null, rejectedData -> socket.send("done",
+              rejectedData));
+            break;
+          default:
+            throw new IllegalStateException();
+        }
+      });
     });
     final HttpTransportServer httpTransportServer = new HttpTransportServer().ontransport(server);
     final WebSocketTransportServer wsTransportServer = new WebSocketTransportServer().ontransport
@@ -125,8 +96,7 @@ public class ProtocolTest {
         ServletContext context = event.getServletContext();
         ServletRegistration regSetup = context.addServlet("/setup", new HttpServlet() {
           @Override
-          protected void doGet(HttpServletRequest req, HttpServletResponse res) throws
-            ServletException, IOException {
+          protected void doGet(HttpServletRequest req, HttpServletResponse res) {
             Map<String, String[]> params = req.getParameterMap();
             if (params.containsKey("heartbeat")) {
               server.setHeartbeat(Integer.parseInt(params.get("heartbeat")[0]));
@@ -154,7 +124,7 @@ public class ProtocolTest {
     "/cettia")
     .configurator(new Configurator() {
       @Override
-      public <T> T getEndpointInstance(Class<T> endpointClass) throws InstantiationException {
+      public <T> T getEndpointInstance(Class<T> endpointClass) {
         return endpointClass.cast(new AsityServerEndpoint().onwebsocket(wsTransportServer));
       }
     })
