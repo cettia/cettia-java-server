@@ -13,7 +13,7 @@ It offers a reliable full duplex message channel and elegant patterns to achieve
 
 ---
 
-The following is a summary of the Cettia starter kit to help you get started quickly. In the summary, comments starting with `##` refer to a title of a related chapter in the tutorial, [Building Real-Time Web Applications With Cettia](http://cettia.io/guides/cettia-tutorial/), where you can find a detailed explanation. You may want to highlight the `##`.
+The following is a summary of the Cettia starter kit to help you get started quickly. In the summary, comments starting with `##` refer to a title of a related chapter in the tutorial, [Building Real-Time Web Applications With Cettia](https://cettia.io/guides/cettia-tutorial/), where you can find a detailed explanation. You may want to highlight the `##`.
 
 Maven dependencies.
 
@@ -233,7 +233,7 @@ socket.once("open", () => {
 });
 ```
 
-The full source code for the starter kit is available at the repository, https://github.com/cettia/cettia-starter-kit. If you want to dig deeper, read an introductory tutorial to Cettia, [Building Real-Time Web Applications With Cettia](http://cettia.io/guides/cettia-tutorial/). It explains the reason behind key design decisions that the Cettia team have made in the Cettia, as well as various patterns and features required to build real-time oriented applications without compromise with Cettia.
+The full source code for the starter kit is available at the repository, https://github.com/cettia/cettia-starter-kit. If you want to dig deeper, read an introductory tutorial to Cettia, [Building Real-Time Web Applications With Cettia](https://cettia.io/guides/cettia-tutorial/). It explains the reason behind key design decisions that the Cettia team have made in the Cettia, as well as various patterns and features required to build real-time oriented applications without compromise with Cettia.
 
 ---
 
