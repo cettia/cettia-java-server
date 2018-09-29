@@ -49,4 +49,18 @@ public abstract class ServerSocketPredicates {
     return socket -> Objects.equals(socket.get(key), value);
   }
 
+  /*
+   * Returns a predicate that excludes the given socket.
+   */
+  public static ServerSocketPredicate exclude(ServerSocket socket) {
+    return exclude(Objects.requireNonNull(socket).id());
+  }
+
+  /*
+   * Returns a predicate that excludes a socket whose id is the same with the given one.
+   */
+  public static ServerSocketPredicate exclude(String id) {
+    return socket -> !socket.id().equals(id);
+  }
+
 }

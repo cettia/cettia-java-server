@@ -57,4 +57,16 @@ public class ServerSocketPredicatesTest {
     assertFalse(ServerSocketPredicates.attr("ethanol", "beer").test(socket));
   }
 
+  @Test
+  public void exclude() {
+    ServerSocket socket1 = mock(ServerSocket.class);
+    when(socket1.id()).thenReturn("ID1");
+    ServerSocket socket2 = mock(ServerSocket.class);
+    when(socket2.id()).thenReturn("ID2");
+    assertFalse(ServerSocketPredicates.exclude(socket1).test(socket1));
+    assertFalse(ServerSocketPredicates.exclude("ID1").test(socket1));
+    assertTrue(ServerSocketPredicates.exclude(socket2).test(socket1));
+    assertTrue(ServerSocketPredicates.exclude("ID2").test(socket1));
+  }
+
 }
