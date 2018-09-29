@@ -16,6 +16,7 @@
 package io.cettia;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * A predicate to filter {@link ServerSocket}.
@@ -32,5 +33,30 @@ public interface ServerSocketPredicate extends Serializable {
    * @return {@code true} if the socket matches the predicate, otherwise {@code false}
    */
   boolean test(ServerSocket socket);
+
+  /**
+   * Returns a composed predicate that represents a short-circuiting logical AND of this
+   * predicate and another.
+   */
+  default ServerSocketPredicate and(ServerSocketPredicate that) {
+    Objects.requireNonNull(that);
+    return socket -> test(socket) && that.test(socket);
+  }
+
+  /**
+   * Returns a composed predicate that represents a short-circuiting logical OR of this predicate
+   * and another.
+   */
+  default ServerSocketPredicate or(ServerSocketPredicate that) {
+    Objects.requireNonNull(that);
+    return socket -> test(socket) || that.test(socket);
+  }
+
+  /**
+   * Returns a predicate that represents the logical negation of this predicate.
+   */
+  default ServerSocketPredicate negate() {
+    return socket -> !test(socket);
+  }
 
 }
