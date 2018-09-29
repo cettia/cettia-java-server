@@ -48,4 +48,13 @@ public class ServerSocketPredicatesTest {
     assertFalse(ServerSocketPredicates.tag("hite", "ob").test(socket));
   }
 
+  @Test
+  public void attr() {
+    ServerSocket socket = mock(ServerSocket.class);
+    when(socket.get("alcohol")).thenReturn("soju");
+    assertTrue(ServerSocketPredicates.attr("alcohol", "soju").test(socket));
+    assertFalse(ServerSocketPredicates.attr("alcohol", "beer").test(socket));
+    assertFalse(ServerSocketPredicates.attr("ethanol", "beer").test(socket));
+  }
+
 }
