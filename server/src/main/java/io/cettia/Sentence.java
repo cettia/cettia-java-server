@@ -15,8 +15,6 @@
  */
 package io.cettia;
 
-import io.cettia.asity.action.Action;
-
 import java.io.Serializable;
 
 /**
@@ -29,17 +27,27 @@ import java.io.Serializable;
  */
 public class Sentence implements AbstractServerSocket<Sentence> {
 
-  private final Action<SerializableAction<ServerSocket>> serverAction;
+  private final Server server;
+  private final ServerSocketPredicate predicate;
 
-  Sentence(Action<SerializableAction<ServerSocket>> serverAction) {
-    this.serverAction = serverAction;
+  Sentence(Server server, ServerSocketPredicate predicate) {
+    this.server = server;
+    this.predicate = predicate;
+  }
+
+  /**
+   * Creates and returns a sentence with a predicate. The returned sentence's predicate represents
+   * a short-circuiting logical AND of the original sentence's predicate and the given predicate.
+   */
+  public Sentence find(ServerSocketPredicate predicate) {
+    return new Sentence(server, this.predicate.and(predicate));
   }
 
   /**
    * Executes the given action with sockets hold by the sentence
    */
   public Sentence execute(SerializableAction<ServerSocket> action) {
-    serverAction.on(action);
+    server.find(predicate, action);
     return this;
   }
 

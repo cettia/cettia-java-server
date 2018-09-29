@@ -124,8 +124,8 @@ public class DefaultServer implements Server {
   }
 
   @Override
-  public Sentence find(final ServerSocketPredicate predicate) {
-    return new Sentence(action -> find(predicate, action));
+  public Sentence find(ServerSocketPredicate predicate) {
+    return new Sentence(this, predicate);
   }
 
   @Override
@@ -140,20 +140,18 @@ public class DefaultServer implements Server {
 
   @Override
   public Sentence all() {
-    return new Sentence(action -> all(action));
+    return new Sentence(this, ServerSocketPredicates.all());
   }
 
   @Override
   public Server all(SerializableAction<ServerSocket> action) {
-    for (ServerSocket socket : sockets.values()) {
-      action.on(socket);
-    }
+    all().execute(action);
     return this;
   }
 
   @Override
-  public Sentence byTag(final String... names) {
-    return new Sentence(action -> byTag(names, action));
+  public Sentence byTag(String... names) {
+    return new Sentence(this, ServerSocketPredicates.tag(names));
   }
 
   @Override
@@ -163,12 +161,7 @@ public class DefaultServer implements Server {
 
   @Override
   public Server byTag(String[] names, SerializableAction<ServerSocket> action) {
-    List<String> nameList = Arrays.asList(names);
-    for (ServerSocket socket : sockets.values()) {
-      if (socket.tags().containsAll(nameList)) {
-        action.on(socket);
-      }
-    }
+    byTag(names).execute(action);
     return this;
   }
 
