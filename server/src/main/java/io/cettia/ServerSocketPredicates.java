@@ -27,40 +27,44 @@ import java.util.Objects;
  */
 public abstract class ServerSocketPredicates {
 
-  /*
+  /**
    * Returns a predicate that always matches.
    */
   public static ServerSocketPredicate all() {
     return socket -> true;
   }
 
-  /*
+  /**
    * Returns a predicate that tests the socket tags against the given tags.
    */
   public static ServerSocketPredicate tag(String... tags) {
     return socket -> socket.tags().containsAll(Arrays.asList(tags));
   }
 
-  /*
+  /**
    * Returns a predicate that tests the socket attributes against the given key-value pair. In a
-   * clustered environment, <code>value<code> should implement {@link Serializable}.
+   * clustered environment, <code>value<code> should implement {@link java.io.Serializable}.
    */
   public static ServerSocketPredicate attr(String key, Object value) {
     return socket -> Objects.equals(socket.get(key), value);
   }
 
-  /*
-   * Returns a predicate that excludes the given socket.
+  /**
+   * Returns a predicate that tests the socket id against the given socket's id. It can be used
+   * to exclude a certain socket in conjunction with {@link ServerSocketPredicate#negate} like
+   * <code>server.find(id(socket).negate())</code>.
    */
-  public static ServerSocketPredicate exclude(ServerSocket socket) {
-    return exclude(Objects.requireNonNull(socket).id());
+  public static ServerSocketPredicate id(ServerSocket socket) {
+    return id(Objects.requireNonNull(socket).id());
   }
 
-  /*
-   * Returns a predicate that excludes a socket whose id is the same with the given one.
+  /**
+   * Returns a predicate that tests the socket id against the given socket id. It can be used
+   * to exclude a certain socket in conjunction with {@link ServerSocketPredicate#negate} like
+   * <code>server.find(id(id).negate())</code>.
    */
-  public static ServerSocketPredicate exclude(String id) {
-    return socket -> !socket.id().equals(id);
+  public static ServerSocketPredicate id(String id) {
+    return socket -> socket.id().equals(id);
   }
 
 }
