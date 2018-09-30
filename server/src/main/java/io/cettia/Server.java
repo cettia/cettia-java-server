@@ -40,27 +40,39 @@ public interface Server extends Action<ServerTransport> {
   /**
    * Returns a sentence that every socket in this server has to follow.
    */
-  Sentence all();
+  default Sentence all() {
+    return new Sentence(this, ServerSocketPredicates.all());
+  }
 
   /**
    * Executes the given action retrieving every socket in this server.
    */
-  Server all(SerializableAction<ServerSocket> action);
+  default Server all(SerializableAction<ServerSocket> action) {
+    all().execute(action);
+    return this;
+  }
 
   /**
    * Returns a sentence that the socket tagged with the given tags in this server have to follow.
    */
-  Sentence byTag(String... names);
+  default Sentence byTag(String... names) {
+    return new Sentence(this, ServerSocketPredicates.tag(names));
+  }
 
   /**
    * Executes the given action retrieving the socket tagged with the given tag in this server.
    */
-  Server byTag(String name, SerializableAction<ServerSocket> action);
+  default Server byTag(String name, SerializableAction<ServerSocket> action) {
+    return byTag(new String[]{name}, action);
+  }
 
   /**
    * Executes the given action retrieving the socket tagged with the given tags in this server.
    */
-  Server byTag(String[] names, SerializableAction<ServerSocket> action);
+  default Server byTag(String[] names, SerializableAction<ServerSocket> action) {
+    byTag(names).execute(action);
+    return this;
+  }
 
   /**
    * Adds a socket event handler to be called when the socket has been created in this server.

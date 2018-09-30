@@ -139,33 +139,6 @@ public class DefaultServer implements Server {
   }
 
   @Override
-  public Sentence all() {
-    return new Sentence(this, ServerSocketPredicates.all());
-  }
-
-  @Override
-  public Server all(SerializableAction<ServerSocket> action) {
-    all().execute(action);
-    return this;
-  }
-
-  @Override
-  public Sentence byTag(String... names) {
-    return new Sentence(this, ServerSocketPredicates.tag(names));
-  }
-
-  @Override
-  public Server byTag(String name, SerializableAction<ServerSocket> action) {
-    return byTag(new String[]{name}, action);
-  }
-
-  @Override
-  public Server byTag(String[] names, SerializableAction<ServerSocket> action) {
-    byTag(names).execute(action);
-    return this;
-  }
-
-  @Override
   public Server onsocket(Action<ServerSocket> action) {
     socketActions.add(action);
     return this;
