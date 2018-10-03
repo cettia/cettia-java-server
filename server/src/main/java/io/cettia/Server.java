@@ -51,7 +51,7 @@ public interface Server extends Action<ServerTransport> {
    */
   @Deprecated
   default Sentence all() {
-    return new Sentence(this, ServerSocketPredicates.all());
+    return find(ServerSocketPredicates.all());
   }
 
   /**
@@ -78,7 +78,7 @@ public interface Server extends Action<ServerTransport> {
    */
   @Deprecated
   default Sentence byTag(String... names) {
-    return new Sentence(this, ServerSocketPredicates.tag(names));
+    return find(ServerSocketPredicates.tag(names));
   }
 
   /**
