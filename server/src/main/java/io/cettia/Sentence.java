@@ -52,11 +52,6 @@ public class Sentence implements AbstractServerSocket<Sentence> {
   }
 
   @Override
-  public Sentence send(String event) {
-    return send(event, null);
-  }
-
-  @Override
   public Sentence send(String event, Object data) {
     return execute(new SendAction(event, data));
   }

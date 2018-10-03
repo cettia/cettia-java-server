@@ -61,10 +61,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @author Donghwan Kim
  */
-// TODO Extract constants
 public class DefaultServer implements Server {
 
-  private Map<String, DefaultServerSocket> sockets = new ConcurrentHashMap<>();
+  protected Map<String, DefaultServerSocket> sockets = new ConcurrentHashMap<>();
   private Actions<ServerSocket> socketActions = new ConcurrentActions<>();
   private int heartbeat = 20000;
   private int _heartbeat = 5000;
@@ -78,7 +77,6 @@ public class DefaultServer implements Server {
       return new Thread(r, "Cettia-Scheduler-" + threadId.getAndIncrement());
     }
   });
-
   // This pool will be used to actually dispatch the events to connected clients
   private final Executor workers = Executors.newCachedThreadPool(new ThreadFactory() {
     AtomicInteger threadId = new AtomicInteger(1);
@@ -105,7 +103,7 @@ public class DefaultServer implements Server {
     socket.handshake(transport);
   }
 
-  private DefaultServerSocket createSocket(ServerTransport transport) {
+  protected DefaultServerSocket createSocket(ServerTransport transport) {
     Map<String, String> options = new LinkedHashMap<>();
     options.put("heartbeat", Integer.toString(heartbeat));
     options.put("_heartbeat", Integer.toString(_heartbeat));
@@ -130,11 +128,7 @@ public class DefaultServer implements Server {
 
   @Override
   public Server find(ServerSocketPredicate predicate, SerializableAction<ServerSocket> action) {
-    for (ServerSocket socket : sockets.values()) {
-      if (predicate.test(socket)) {
-        action.on(socket);
-      }
-    }
+    sockets.values().stream().filter(predicate::test).forEach(action::on);
     return this;
   }
 
@@ -160,7 +154,7 @@ public class DefaultServer implements Server {
     this._heartbeat = _heartbeat;
   }
 
-  private static class DefaultServerSocket implements ServerSocket {
+  protected static class DefaultServerSocket implements ServerSocket {
     private final Map<String, String> options;
     private final String id = UUID.randomUUID().toString();
     private final Set<String> tags = new CopyOnWriteArraySet<>();
@@ -181,7 +175,6 @@ public class DefaultServer implements Server {
 
     public DefaultServerSocket(Map<String, String> opts, final ScheduledExecutorService scheduler, final Executor workers) {
       this.options = opts;
-
       this.scheduler = scheduler;
       this.workers = workers;
 
@@ -395,31 +388,6 @@ public class DefaultServer implements Server {
       return this;
     }
 
-    @Override
-    public ServerSocket onopen(Action<Void> action) {
-      return on("open", action);
-    }
-
-    @Override
-    public ServerSocket onclose(Action<Void> action) {
-      return on("close", action);
-    }
-
-    @Override
-    public ServerSocket oncache(Action<Object[]> action) {
-      return on("cache", action);
-    }
-
-    @Override
-    public ServerSocket ondelete(Action<Void> action) {
-      return on("delete", action);
-    }
-
-    @Override
-    public ServerSocket onerror(Action<Throwable> action) {
-      return on("error", action);
-    }
-
     @SuppressWarnings("unchecked")
     @Override
     public <T> ServerSocket off(String event, Action<T> action) {
@@ -430,25 +398,9 @@ public class DefaultServer implements Server {
       return this;
     }
 
-    @Override
-    public ServerSocket send(String event) {
-      return send(event, null);
-    }
-
-    @Override
-    public ServerSocket send(String event, Object data) {
-      return send(event, data, null);
-    }
-
-    @Override
-    public <T> ServerSocket send(String type, Object data, Action<T> resolved) {
-      return send(type, data, resolved, null);
-    }
-
     @SuppressWarnings("unchecked")
     @Override
-    public <T, U> ServerSocket send(String type, Object data, Action<T> resolved, Action<U>
-      rejected) {
+    public <T, U> ServerSocket send(String type, Object data, Action<T> resolved, Action<U> rejected) {
       if (state.get() != State.OPENED) {
         actionsMap.get("cache").fire(new Object[]{type, data, resolved, rejected});
       } else {

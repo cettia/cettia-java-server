@@ -87,56 +87,9 @@ public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
   <T> ServerSocket on(String event, Action<T> action);
 
   /**
-   * Adds an open event handler to be called when the handshake is performed successfully and
-   * communication is possible.
-   * <p/>
-   * Equivalent to <code>socket.on("open", action)</code>
-   */
-  ServerSocket onopen(Action<Void> action);
-
-  /**
-   * Adds a close event handler to be called when the underlying transport is closed for any reason.
-   * <p/>
-   * Equivalent to <code>socket.on("close", action)</code>
-   */
-  ServerSocket onclose(Action<Void> action);
-
-  /**
-   * Adds an error event handler to be called if there was any error on the socket.
-   * <p/>
-   * Equivalent to <code>socket.on("error", action)</code>
-   */
-  ServerSocket onerror(Action<Throwable> action);
-
-  /**
-   * Adds a cache event handler to be called if one of <code>send</code> methods is called when
-   * there is no connection. The given value is an array of arguments of
-   * {@link #send(String, Object, Action, Action)}.
-   * <p/>
-   * Equivalent to <code>socket.on("cache", action)</code>
-   */
-  ServerSocket oncache(Action<Object[]> action);
-
-  /**
-   * Adds a delete event handler to be called when the socket is in the closed state for a long
-   * time i.e. 1 minute and deleted from the server. As the end of the life cycle,
-   * <code>delete</code> event is called only once.
-   * <p/>
-   * Equivalent to <code>socket.on("delete", action)</code>
-   */
-  ServerSocket ondelete(Action<Void> action);
-
-  /**
    * Removes a given event handler for a given event.
    */
   <T> ServerSocket off(String event, Action<T> action);
-
-  /**
-   * Sends a given event with data attaching resolved callback.
-   * <p/>
-   * For the allowed types for {@code T}, see {@link ServerSocket#on(String, Action)}.
-   */
-  <T> ServerSocket send(String event, Object data, Action<T> resolved);
 
   /**
    * Sends a given event with data attaching resolved callback and rejected callback.
@@ -151,6 +104,70 @@ public interface ServerSocket extends AbstractServerSocket<ServerSocket> {
    * {@link ServerTransport} is available.
    */
   <T> T unwrap(Class<T> clazz);
+
+  /**
+   * Adds an open event handler to be called when the handshake is performed successfully and
+   * communication is possible.
+   * <p/>
+   * Equivalent to <code>socket.on("open", action)</code>
+   */
+  default ServerSocket onopen(Action<Void> action) {
+    return on("open", action);
+  }
+
+  /**
+   * Adds a close event handler to be called when the underlying transport is closed for any reason.
+   * <p/>
+   * Equivalent to <code>socket.on("close", action)</code>
+   */
+  default ServerSocket onclose(Action<Void> action) {
+    return on("close", action);
+  }
+
+  /**
+   * Adds an error event handler to be called if there was any error on the socket.
+   * <p/>
+   * Equivalent to <code>socket.on("error", action)</code>
+   */
+  default ServerSocket onerror(Action<Throwable> action) {
+    return on("error", action);
+  }
+
+  /**
+   * Adds a cache event handler to be called if one of <code>send</code> methods is called when
+   * there is no connection. The given value is an array of arguments of
+   * {@link #send(String, Object, Action, Action)}.
+   * <p/>
+   * Equivalent to <code>socket.on("cache", action)</code>
+   */
+  default ServerSocket oncache(Action<Object[]> action) {
+    return on("cache", action);
+  }
+
+  /**
+   * Adds a delete event handler to be called when the socket is in the closed state for a long
+   * time i.e. 1 minute and deleted from the server. As the end of the life cycle,
+   * <code>delete</code> event is called only once.
+   * <p/>
+   * Equivalent to <code>socket.on("delete", action)</code>
+   */
+  default ServerSocket ondelete(Action<Void> action) {
+    return on("delete", action);
+  }
+
+  @Override
+  default ServerSocket send(String event, Object data) {
+    return send(event, data, null);
+  }
+
+  /**
+   * Sends a given event with data attaching resolved callback.
+   * <p/>
+   * For the allowed types for {@code T}, see {@link ServerSocket#on(String, Action)}.
+   */
+  default <T> ServerSocket send(String event, Object data, Action<T> resolved) {
+    return send(event, data, resolved, null);
+  }
 
   /**
    * Enumeration of the state of the socket.

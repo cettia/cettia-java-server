@@ -62,6 +62,8 @@ public class ProtocolTest {
           case "rejected":
             reply.reject(data.get("data"));
             break;
+          default:
+            throw new IllegalStateException();
         }
       })
       .on("/reply/outbound", (Map<String, Object> data) -> {
