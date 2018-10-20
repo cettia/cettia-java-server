@@ -26,13 +26,14 @@ import java.util.Map;
 /**
  * {@link Server} implementation to support clustered environments.
  *
- * @see <a href="https://cettia.io/guides/cettia-tutorial/#scaling-a-cettia-application">Scaling a Cettia Application</a>
  * @author Donghwan Kim
+ * @see <a href="https://cettia.io/guides/cettia-tutorial/#scaling-a-cettia-application">Scaling a Cettia
+ * Application</a>
  */
 public class ClusteredServer extends DefaultServer {
 
-  private Actions<Map<String, Object>> publishActions = new ConcurrentActions<>();
-  private Action<Map<String, Object>> messageAction = map -> {
+  private final Actions<Map<String, Object>> publishActions = new ConcurrentActions<>();
+  private final Action<Map<String, Object>> messageAction = map -> {
     ServerSocketPredicate predicate = (ServerSocketPredicate) map.get("predicate");
     SerializableAction<ServerSocket> action = (SerializableAction<ServerSocket>) map.get("action");
     ClusteredServer.super.find(predicate, action);

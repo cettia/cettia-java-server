@@ -31,8 +31,8 @@ import static org.mockito.Mockito.when;
  */
 public class SentenceTest {
 
-  ServerSocketPredicate NOOP_PREDICATE = socket -> true;
-  SerializableAction<ServerSocket> NOOP_ACTION = socket -> socket.id();
+  final ServerSocketPredicate NOOP_PREDICATE = socket -> true;
+  final SerializableAction<ServerSocket> NOOP_ACTION = ServerSocket::id;
 
   @Test
   public void execute() {

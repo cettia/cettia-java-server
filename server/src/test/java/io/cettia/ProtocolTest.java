@@ -48,42 +48,39 @@ public class ProtocolTest {
 
   @Test
   public void protocol() throws Exception {
-    final DefaultServer server = new DefaultServer();
+    DefaultServer server = new DefaultServer();
     server.onsocket(socket -> {
       log.debug("socket.uri() is {}", socket.uri());
       socket.on("abort", $ -> socket.close())
-      .on("echo", data -> socket.send("echo", data))
-      .on("/reply/inbound", (Reply<Map<String, Object>> reply) -> {
-        Map<String, Object> data = reply.data();
-        switch ((String) data.get("type")) {
-          case "resolved":
-            reply.resolve(data.get("data"));
-            break;
-          case "rejected":
-            reply.reject(data.get("data"));
-            break;
-          default:
-            throw new IllegalStateException();
-        }
-      })
-      .on("/reply/outbound", (Map<String, Object> data) -> {
-        switch ((String) data.get("type")) {
-          case "resolved":
-            socket.send("test", data.get("data"), resolvedData -> socket.send("done",
-              resolvedData));
-            break;
-          case "rejected":
-            socket.send("test", data.get("data"), null, rejectedData -> socket.send("done",
-              rejectedData));
-            break;
-          default:
-            throw new IllegalStateException();
-        }
-      });
+        .on("echo", data -> socket.send("echo", data))
+        .on("/reply/inbound", (Reply<Map<String, Object>> reply) -> {
+          Map<String, Object> data = reply.data();
+          switch ((String) data.get("type")) {
+            case "resolved":
+              reply.resolve(data.get("data"));
+              break;
+            case "rejected":
+              reply.reject(data.get("data"));
+              break;
+            default:
+              throw new IllegalStateException();
+          }
+        })
+        .on("/reply/outbound", (Map<String, Object> data) -> {
+          switch ((String) data.get("type")) {
+            case "resolved":
+              socket.send("test", data.get("data"), d -> socket.send("done", d));
+              break;
+            case "rejected":
+              socket.send("test", data.get("data"), null, d -> socket.send("done", d));
+              break;
+            default:
+              throw new IllegalStateException();
+          }
+        });
     });
-    final HttpTransportServer httpTransportServer = new HttpTransportServer().ontransport(server);
-    final WebSocketTransportServer wsTransportServer = new WebSocketTransportServer().ontransport
-      (server);
+    HttpTransportServer httpTransportServer = new HttpTransportServer().ontransport(server);
+    WebSocketTransportServer wsTransportServer = new WebSocketTransportServer().ontransport(server);
 
     org.eclipse.jetty.server.Server jetty = new org.eclipse.jetty.server.Server();
     ServerConnector connector = new ServerConnector(jetty);
@@ -122,23 +119,22 @@ public class ProtocolTest {
     });
     // For WebSocket transport
     ServerContainer container = WebSocketServerContainerInitializer.configureContext(handler);
-    ServerEndpointConfig config = ServerEndpointConfig.Builder.create(AsityServerEndpoint.class,
-    "/cettia")
-    .configurator(new Configurator() {
-      @Override
-      public <T> T getEndpointInstance(Class<T> endpointClass) {
-        return endpointClass.cast(new AsityServerEndpoint().onwebsocket(wsTransportServer));
-      }
-    })
-    .build();
+    ServerEndpointConfig config = ServerEndpointConfig.Builder.create(AsityServerEndpoint.class,"/cettia")
+      .configurator(new Configurator() {
+        @Override
+        public <T> T getEndpointInstance(Class<T> endpointClass) {
+          return endpointClass.cast(new AsityServerEndpoint().onwebsocket(wsTransportServer));
+        }
+      })
+      .build();
     container.addEndpoint(config);
 
     jetty.start();
 
     CommandLine cmdLine = CommandLine.parse("./src/test/resources/node/node")
-    .addArgument("./src/test/resources/runner")
-    .addArgument("--cettia.transports")
-    .addArgument("websocket,httpstream,httplongpoll");
+      .addArgument("./src/test/resources/runner")
+      .addArgument("--cettia.transports")
+      .addArgument("websocket,httpstream,httplongpoll");
     DefaultExecutor executor = new DefaultExecutor();
     // The exit value of mocha is the number of failed tests.
     executor.execute(cmdLine);

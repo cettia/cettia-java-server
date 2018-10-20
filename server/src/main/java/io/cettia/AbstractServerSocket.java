@@ -28,7 +28,7 @@ public interface AbstractServerSocket<T> {
    */
   default T send(String event) {
     return send(event, null);
-  };
+  }
 
   /**
    * Sends a given event with data.

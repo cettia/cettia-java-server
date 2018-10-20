@@ -32,19 +32,18 @@ import java.util.concurrent.atomic.AtomicReference;
 public abstract class BaseServerTransport implements ServerTransport {
 
   private final Logger logger = LoggerFactory.getLogger(BaseServerTransport.class);
-  protected Actions<String> textActions = new ConcurrentActions<>();
-  protected Actions<ByteBuffer> binaryActions = new ConcurrentActions<>();
-  protected Actions<Throwable> errorActions = new ConcurrentActions<Throwable>()
-  .add(throwable -> logger.trace("{} has received a throwable {}", BaseServerTransport.this, throwable));
-  private AtomicReference<State> stateRef = new AtomicReference<>(State.OPEN);
-  protected Actions<Void> closeActions = new ConcurrentActions<Void>(new Actions.Options().once
-    (true).memory(true))
-  .add($ -> {
-    logger.trace("{} has been closed", BaseServerTransport.this);
-    stateRef.set(State.CLOSED);
-    textActions.disable();
-    errorActions.disable();
-  });
+  protected final Actions<String> textActions = new ConcurrentActions<>();
+  protected final Actions<ByteBuffer> binaryActions = new ConcurrentActions<>();
+  protected final Actions<Throwable> errorActions = new ConcurrentActions<Throwable>()
+    .add(t -> logger.trace("{} has received a throwable {}", BaseServerTransport.this, t));
+  private final AtomicReference<State> stateRef = new AtomicReference<>(State.OPEN);
+  protected final Actions<Void> closeActions = new ConcurrentActions<Void>(new Actions.Options().once(true).memory(true))
+    .add($ -> {
+      logger.trace("{} has been closed", BaseServerTransport.this);
+      stateRef.set(State.CLOSED);
+      textActions.disable();
+      errorActions.disable();
+    });
 
   @Override
   public ServerTransport ontext(Action<String> action) {
@@ -101,7 +100,7 @@ public abstract class BaseServerTransport implements ServerTransport {
     logger.trace("{} has started to close the connection", this);
     State state = stateRef.get();
     if (state != State.CLOSING && state != State.CLOSED && stateRef.compareAndSet(state, State.CLOSING)) {
-        doClose();
+      doClose();
     }
   }
 

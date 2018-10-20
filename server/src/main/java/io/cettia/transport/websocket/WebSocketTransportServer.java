@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 
 /**
- * Websocket implementation of {@link TransportServer}.
+ * WebSocket implementation of {@link TransportServer}.
  * <p/>
  * It processes transport whose URI whose protocol is either {@code ws} or
  * {@code wss} like {@code ws://localhost:8080/cettia}. Because WebSocket protocol
@@ -40,7 +40,7 @@ import java.nio.ByteBuffer;
 public class WebSocketTransportServer implements TransportServer<ServerWebSocket> {
 
   private final Logger log = LoggerFactory.getLogger(WebSocketTransportServer.class);
-  private Actions<ServerTransport> transportActions = new ConcurrentActions<ServerTransport>()
+  private final Actions<ServerTransport> transportActions = new ConcurrentActions<ServerTransport>()
     .add(transport -> {
       log.trace("{}'s request has opened", transport);
       transport.onclose($ -> log.trace("{}'s request has been closed", transport));
@@ -69,9 +69,9 @@ public class WebSocketTransportServer implements TransportServer<ServerWebSocket
     public DefaultTransport(ServerWebSocket ws) {
       this.ws = ws;
       ws.onerror(throwable -> errorActions.fire(throwable))
-      .onclose($ -> closeActions.fire())
-      .ontext(data -> textActions.fire(data))
-      .onbinary(data -> binaryActions.fire(data));
+        .onclose($ -> closeActions.fire())
+        .ontext(data -> textActions.fire(data))
+        .onbinary(data -> binaryActions.fire(data));
     }
 
     @Override

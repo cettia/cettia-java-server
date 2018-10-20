@@ -57,21 +57,19 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @author Donghwan Kim
  */
-// TODO Extract constants
 public class HttpTransportServer implements TransportServer<ServerHttpExchange> {
 
   private final Logger log = LoggerFactory.getLogger(HttpTransportServer.class);
-  private Map<String, BaseTransport> transports = new ConcurrentHashMap<>();
-  private Actions<ServerTransport> transportActions = new ConcurrentActions<ServerTransport>()
-  .add(t -> {
-    final BaseTransport transport = (BaseTransport) t;
-    log.trace("{}'s request has opened", transport);
-    transports.put(transport.id(), transport);
-    transport.onclose($ -> {
-      log.trace("{}'s request has been closed", transport);
-      transports.remove(transport.id());
+  private final Map<String, BaseTransport> transports = new ConcurrentHashMap<>();
+  private final Actions<BaseTransport> transportActions = new ConcurrentActions<BaseTransport>()
+    .add(transport -> {
+      log.trace("{}'s request has opened", transport);
+      transports.put(transport.id(), transport);
+      transport.onclose($ -> {
+        log.trace("{}'s request has been closed", transport);
+        transports.remove(transport.id());
+      });
     });
-  });
 
   /**
    * For internal use only.
@@ -106,9 +104,9 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     for (Entry<String, String> entry : params.entrySet()) {
       try {
         query.append(URLEncoder.encode(entry.getKey(), "UTF-8"))
-        .append("=")
-        .append(URLEncoder.encode(entry.getValue(), "UTF-8"))
-        .append("&");
+          .append("=")
+          .append(URLEncoder.encode(entry.getValue(), "UTF-8"))
+          .append("&");
       } catch (UnsupportedEncodingException e) {
         throw new RuntimeException(e);
       }
@@ -117,15 +115,14 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
   }
 
   @Override
-  public void on(final ServerHttpExchange http) {
-    final Map<String, String> params = parseQuery(http.uri());
+  public void on(ServerHttpExchange http) {
+    Map<String, String> params = parseQuery(http.uri());
     http.setHeader("cache-control", "no-cache, no-store, must-revalidate")
-    .setHeader("pragma", "no-cache")
-    .setHeader("expires", "0")
-    .setHeader("access-control-allow-origin", http.header("origin") != null ? http.header
-      ("origin") : "*")
-    .setHeader("access-control-allow-headers", "content-type")
-    .setHeader("access-control-allow-credentials", "true");
+      .setHeader("pragma", "no-cache")
+      .setHeader("expires", "0")
+      .setHeader("access-control-allow-origin", http.header("origin") != null ? http.header("origin") : "*")
+      .setHeader("access-control-allow-headers", "content-type")
+      .setHeader("access-control-allow-credentials", "true");
     switch (http.method()) {
       case OPTIONS: {
         http.end();
@@ -152,7 +149,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
           case "poll": {
             String id = params.get("cettia-transport-id");
             BaseTransport transport = transports.get(id);
-            if (transport != null && transport instanceof LongpollTransport) {
+            if (transport instanceof LongpollTransport) {
               ((LongpollTransport) transport).refresh(http);
             } else {
               log.error("Long polling transport#{} is not found", id);
@@ -179,9 +176,8 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
         break;
       }
       case POST: {
-        final String id = params.get("cettia-transport-id");
-        switch (http.header("content-type") == null ? "" : http.header("content-type")
-          .toLowerCase()) {
+        String id = params.get("cettia-transport-id");
+        switch (http.header("content-type") == null ? "" : http.header("content-type").toLowerCase()) {
           case "text/plain; charset=utf-8":
           case "text/plain; charset=utf8":
           case "text/plain;charset=utf-8":
@@ -195,8 +191,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
                 http.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
               }
               http.end();
-            })
-            .readAsText();
+            }).readAsText();
             break;
           case "application/octet-stream":
             http.onbody((ByteBuffer body) -> {
@@ -208,8 +203,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
                 http.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
               }
               http.end();
-            })
-            .readAsBinary();
+            }).readAsBinary();
             break;
           default:
             BaseTransport transport = transports.get(id);
@@ -232,7 +226,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
 
   @Override
   public HttpTransportServer ontransport(Action<ServerTransport> action) {
-    transportActions.add(action);
+    transportActions.add(action::on);
     return this;
   }
 
@@ -245,9 +239,9 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
 
     protected final ServerHttpExchange http;
     protected final Map<String, String> params;
-    protected String id = UUID.randomUUID().toString();
+    protected final String id = UUID.randomUUID().toString();
     // For JSON processing in long polling
-    protected ObjectMapper mapper = new ObjectMapper();
+    protected final ObjectMapper mapper = new ObjectMapper();
 
     public BaseTransport(ServerHttpExchange http) {
       this.params = parseQuery(http.uri());
@@ -299,12 +293,13 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
       Map<String, String> query = new LinkedHashMap<>();
       query.put("cettia-transport-version", "1.0");
       query.put("cettia-transport-id", id);
+
+      boolean sse = "true".equals(params.get("cettia-transport-sse"));
       http.onfinish($ -> closeActions.fire())
-      .onerror(throwable -> errorActions.fire(throwable))
-      .onclose($ -> closeActions.fire())
-      .setHeader("content-type", "text/" + ("true".equals(params.get("cettia-transport-sse")) ? "event-stream" :
-        "plain") + "; charset=utf-8")
-      .write(TEXT_2KB + "\ndata: ?" + formatQuery(query) + "\n\n");
+        .onerror(throwable -> errorActions.fire(throwable))
+        .onclose($ -> closeActions.fire())
+        .setHeader("content-type", (sse ? "text/event-stream" : "text/plain") + "; charset=utf-8")
+        .write(TEXT_2KB + "\ndata: ?" + formatQuery(query) + "\n\n");
     }
 
     @Override
@@ -320,12 +315,12 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     }
 
     private synchronized void sendEventStreamMessage(String data) {
-      String payload = "";
+      StringBuilder payload = new StringBuilder();
       for (String line : data.split("\r\n|\r|\n")) {
-        payload += "data: " + line + "\n";
+        payload.append("data: ").append(line).append("\n");
       }
-      payload += "\n";
-      http.write(payload);
+      payload.append("\n");
+      http.write(payload.toString());
     }
 
     @Override
@@ -342,12 +337,12 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
    */
   private static class LongpollTransport extends BaseTransport {
 
-    private AtomicReference<ServerHttpExchange> httpRef = new AtomicReference<>();
-    private AtomicBoolean aborted = new AtomicBoolean();
+    private final AtomicReference<ServerHttpExchange> httpRef = new AtomicReference<>();
+    private final AtomicBoolean aborted = new AtomicBoolean();
     // Regard it as http.endedWithMessage
-    private AtomicBoolean endedWithMessage = new AtomicBoolean();
-    private AtomicReference<Timer> closeTimer = new AtomicReference<>();
-    private Queue<Object> cache = new ConcurrentLinkedQueue<>();
+    private final AtomicBoolean endedWithMessage = new AtomicBoolean();
+    private final AtomicReference<Timer> closeTimer = new AtomicReference<>();
+    private final Queue<Object> cache = new ConcurrentLinkedQueue<>();
 
     public LongpollTransport(ServerHttpExchange http) {
       super(http);
@@ -355,7 +350,7 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
     }
 
     public void refresh(ServerHttpExchange http) {
-      final Map<String, String> parameters = parseQuery(http.uri());
+      Map<String, String> parameters = parseQuery(http.uri());
       http.onfinish($ -> {
         if (parameters.get("cettia-transport-when").equals("poll") && !endedWithMessage.get()) {
           closeActions.fire();
@@ -370,8 +365,9 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
           closeTimer.set(timer);
         }
       })
-      .onerror(throwable -> errorActions.fire(throwable))
-      .onclose($ -> closeActions.fire());
+        .onerror(throwable -> errorActions.fire(throwable))
+        .onclose($ -> closeActions.fire());
+
       String when = parameters.get("cettia-transport-when");
       switch (when) {
         case "open":
@@ -426,13 +422,12 @@ public class HttpTransportServer implements TransportServer<ServerHttpExchange> 
       boolean jsonp = "true".equals(params.get("cettia-transport-jsonp"));
       if (jsonp) {
         try {
-          data = params.get("cettia-transport-callback") + "(" +  mapper.writeValueAsString(data) + ");";
+          data = params.get("cettia-transport-callback") + "(" + mapper.writeValueAsString(data) + ");";
         } catch (JsonProcessingException e) {
           throw new RuntimeException(e);
         }
       }
-      http.setHeader("content-type", "text/" + (jsonp ? "javascript" : "plain") + "; " +
-        "charset=utf-8").end(data);
+      http.setHeader("content-type", (jsonp ? "text/javascript" : "text/plain") + "; charset=utf-8").end(data);
     }
 
     @Override

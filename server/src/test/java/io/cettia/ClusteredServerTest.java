@@ -35,8 +35,8 @@ import static org.mockito.Mockito.when;
  */
 public class ClusteredServerTest {
 
-  ServerSocketPredicate NOOP_PREDICATE = socket -> true;
-  SerializableAction<ServerSocket> NOOP_ACTION = socket -> socket.id();
+  final ServerSocketPredicate NOOP_PREDICATE = socket -> true;
+  final SerializableAction<ServerSocket> NOOP_ACTION = ServerSocket::id;
 
   @Test
   public void onpublish() {
@@ -70,8 +70,8 @@ public class ClusteredServerTest {
     server2.sockets.put(socketD.id(), socketD);
     servers.add(server2);
 
-    Action<Map<String, Object>> pubAction = map -> servers.stream().forEach(server -> server.messageAction().on(map));
-    servers.stream().forEach(server -> server.onpublish(pubAction));
+    Action<Map<String, Object>> pubAction = map -> servers.forEach(server -> server.messageAction().on(map));
+    servers.forEach(server -> server.onpublish(pubAction));
 
     Set<String> ids = new LinkedHashSet<>();
     server1.find(all(), socket -> ids.add(socket.id()));

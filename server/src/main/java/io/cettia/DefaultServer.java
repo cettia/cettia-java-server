@@ -63,14 +63,10 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class DefaultServer implements Server {
 
-  protected Map<String, DefaultServerSocket> sockets = new ConcurrentHashMap<>();
-  private Actions<ServerSocket> socketActions = new ConcurrentActions<>();
-  private int heartbeat = 20000;
-  private int _heartbeat = 5000;
-
+  protected final Map<String, DefaultServerSocket> sockets = new ConcurrentHashMap<>();
   // This thread will be used for scheduling all heartbeats and related messaging
   private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-    AtomicInteger threadId = new AtomicInteger(1);
+    final AtomicInteger threadId = new AtomicInteger(1);
 
     @Override
     public Thread newThread(Runnable r) {
@@ -79,13 +75,16 @@ public class DefaultServer implements Server {
   });
   // This pool will be used to actually dispatch the events to connected clients
   private final Executor workers = Executors.newCachedThreadPool(new ThreadFactory() {
-    AtomicInteger threadId = new AtomicInteger(1);
+    final AtomicInteger threadId = new AtomicInteger(1);
 
     @Override
     public Thread newThread(Runnable r) {
       return new Thread(r, "Cettia-Worker-" + threadId.getAndIncrement());
     }
   });
+  private final Actions<ServerSocket> socketActions = new ConcurrentActions<>();
+  private int heartbeat = 20000;
+  private int _heartbeat = 5000;
 
   @Override
   public void on(ServerTransport transport) {
@@ -107,11 +106,11 @@ public class DefaultServer implements Server {
     Map<String, String> options = new LinkedHashMap<>();
     options.put("heartbeat", Integer.toString(heartbeat));
     options.put("_heartbeat", Integer.toString(_heartbeat));
-    final DefaultServerSocket socket = new DefaultServerSocket(options, scheduler, workers);
+    DefaultServerSocket socket = new DefaultServerSocket(options, scheduler, workers);
     // socket.uri should be available on socket event #4
     socket.transport = transport;
     // A temporal implementation of 'once'
-    final AtomicBoolean done = new AtomicBoolean();
+    AtomicBoolean done = new AtomicBoolean();
     socket.onopen($ -> {
       if (!done.getAndSet(true)) {
         sockets.put(socket.id(), socket);
@@ -156,24 +155,22 @@ public class DefaultServer implements Server {
 
   protected static class DefaultServerSocket implements ServerSocket {
     private final Map<String, String> options;
-    private final String id = UUID.randomUUID().toString();
-    private final Set<String> tags = new CopyOnWriteArraySet<>();
-    private final Map<String, Object> attributes = new ConcurrentHashMap<>();
-
-    private ObjectMapper textMapper = new ObjectMapper();
-    private ObjectMapper binaryMapper = new ObjectMapper(new MessagePackFactory());
-    private AtomicInteger eventId = new AtomicInteger();
-    private ConcurrentMap<String, Actions<Object>> actionsMap = new ConcurrentHashMap<>();
-    private ConcurrentMap<String, Map<String, Action<Object>>> callbacksMap = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler;
     private final Executor workers;
-
+    private final String id = UUID.randomUUID().toString();
+    private final AtomicReference<State> state = new AtomicReference<>();
+    private final Set<String> tags = new CopyOnWriteArraySet<>();
+    private final Map<String, Object> attributes = new ConcurrentHashMap<>();
+    private final AtomicInteger eventId = new AtomicInteger();
+    private final ObjectMapper textMapper = new ObjectMapper();
+    private final ObjectMapper binaryMapper = new ObjectMapper(new MessagePackFactory());
+    private final ConcurrentMap<String, Actions<Object>> actionsMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Map<String, Action<Object>>> callbacksMap = new ConcurrentHashMap<>();
     private ServerTransport transport;
     private ScheduledFuture<?> deleteFuture;
     private ScheduledFuture<?> heartbeatFuture;
-    private AtomicReference<State> state = new AtomicReference<>();
 
-    public DefaultServerSocket(Map<String, String> opts, final ScheduledExecutorService scheduler, final Executor workers) {
+    public DefaultServerSocket(Map<String, String> opts, ScheduledExecutorService scheduler, Executor workers) {
       this.options = opts;
       this.scheduler = scheduler;
       this.workers = workers;
@@ -185,8 +182,7 @@ public class DefaultServer implements Server {
       actionsMap.put("cache", new ConcurrentActions<>());
       actionsMap.put("error", new ConcurrentActions<>());
       // delete event should have once and memory of true
-      actionsMap.put("delete", new ConcurrentActions<>(new Actions.Options().once(true).memory
-        (true)));
+      actionsMap.put("delete", new ConcurrentActions<>(new Actions.Options().once(true).memory(true)));
 
       onopen($ -> {
         state.set(State.OPENED);
@@ -205,16 +201,15 @@ public class DefaultServer implements Server {
         state.set(State.CLOSED);
         heartbeatFuture.cancel(false);
         // Schedule delete for 1 min in the future, but do the work on a separate thread
+        // Here we pass the actual work off to a worker thread so the scheduler isn't blocked
         deleteFuture = scheduler.schedule(() -> {
-          // Here we pass the actual work off to a worker thread so the scheduler isn't blocked
           workers.execute(() -> actionsMap.get("delete").fire());
         }, 1, TimeUnit.MINUTES);
       });
       ondelete($ -> state.set(State.DELETED));
       on("reply", (Map<String, Object> info) -> {
         Map<String, Action<Object>> callbacks = callbacksMap.remove(info.get("id"));
-        Action<Object> action = (Boolean) info.get("exception") ? callbacks.get("rejected") :
-          callbacks.get("resolved");
+        Action<Object> action = (Boolean) info.get("exception") ? callbacks.get("rejected") : callbacks.get("resolved");
         action.on(info.get("data"));
       });
     }
@@ -230,10 +225,10 @@ public class DefaultServer implements Server {
       }, Integer.parseInt(options.get("heartbeat")), TimeUnit.MILLISECONDS);
     }
 
-    void handshake(final ServerTransport t) {
+    void handshake(ServerTransport t) {
       Action<Void> handshakeAction = $ -> {
         transport = t;
-        final Action<Map<String, Object>> eventAction = event -> {
+        Action<Map<String, Object>> eventAction = event -> {
           Actions<Object> actions = actionsMap.get(event.get("type"));
           if (actions != null) {
             if ((Boolean) event.get("reply")) {
@@ -456,18 +451,6 @@ public class DefaultServer implements Server {
       return this;
     }
 
-    private static class BooleanHolder {
-      private boolean val;
-
-      public boolean get() {
-        return val;
-      }
-
-      public void set(boolean val) {
-        this.val = val;
-      }
-    }
-
     @Override
     public void close() {
       if (state.get() == State.OPENED) {
@@ -517,6 +500,18 @@ public class DefaultServer implements Server {
     @Override
     public String toString() {
       return String.format("ServerSocket@%s[state=%s,tags=%s,attributes=%s]", id, state, tags, attributes);
+    }
+
+    private static class BooleanHolder {
+      private boolean val;
+
+      public boolean get() {
+        return val;
+      }
+
+      public void set(boolean val) {
+        this.val = val;
+      }
     }
   }
 
