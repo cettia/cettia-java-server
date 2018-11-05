@@ -1,6 +1,6 @@
 # Cettia
 
-Cettia is a full-featured real-time web application framework for Java that you can use to exchange events between server and client in real-time. It is meant for when you run into issues which are tricky to resolve with WebSocket, JSON, and switch statement per se:
+Cettia is a full-featured real-time web application framework for Java that you can use to exchange events between server and client in real-time. *It is meant for when you run into issues which are tricky to resolve with WebSocket, JSON, and switch statement per se:*
 
 - Avoiding repetitive boilerplate code
 - Supporting environments where WebSocket is not available
@@ -23,7 +23,7 @@ Maven dependencies.
 <dependency>
   <groupId>io.cettia</groupId>
   <artifactId>cettia-server</artifactId>
-  <version>1.1.0</version>
+  <version>1.2.0</version>
 </dependency>
 <!-- To run a Cettia application on Servlet 3 and Java WebSocket API 1 -->
 <!-- Besides them, you can also use Spring WebFlux, Spring MVC, Grizzly, Vert.x, Netty, and so on -->
@@ -47,19 +47,19 @@ public class CettiaConfigListener implements ServletContextListener {
   public void contextInitialized(ServletContextEvent event) {
     // Cettia part
     // If you don't want to form a cluster,
-    // replace the following line with `Server server = new DefaultServer();`
+    // replace the following line with 'Server server = new DefaultServer();'
     ClusteredServer server = new ClusteredServer();
     HttpTransportServer httpAction = new HttpTransportServer().ontransport(server);
     WebSocketTransportServer wsAction = new WebSocketTransportServer().ontransport(server);
 
-    // If a client opens a socket, the server creates and passes a ServerSocket to socket handlers
+    // If a client opens a socket, the server creates and passes a socket to socket handlers
     server.onsocket((ServerSocket socket) -> {
       // ## Socket Lifecycle
       Action<Void> logState = v -> System.out.println(socket + " " + socket.state());
       socket.onopen(logState).onclose(logState).ondelete(logState);
 
       // ## Sending and Receiving Events
-      // An `echo` event handler where any received echo event is sent back
+      // An 'echo' event handler where any received echo event is sent back
       socket.on("echo", data -> socket.send("echo", data));
 
       // ## Attributes and Tags
@@ -74,31 +74,29 @@ public class CettiaConfigListener implements ServletContextListener {
       }
 
       // ## Working with Sockets
-      // A `chat` event handler to send a given chat event to every socket in every server in the cluster
-      socket.on("chat", data -> server.all().send("chat", data));
+      // A 'chat' event handler to send a given chat event to every socket in every server in the cluster
+      socket.on("chat", data -> server.find(ServerSocketPredicates.all()).send("chat", data));
 
-      // ## Finder Methods and Sentence
+      // ## Advanced Sockets Handling
       if (username != null) {
-        // A myself event handler to send a given myself event to sockets whose username is the same
+        // A group of sockets representing the same user, whose username is the given one
+        Sentence user = server.find(ServerSocketPredicates.attr("username", username));
+        // A 'myself' event handler to send a given myself event to myself whose username is the same
         socket.on("myself", data -> {
-          // Find sockets by the attribute and deal with them directly
-          server.find(s -> username.equals(s.get("username"))).execute(s -> s.send("myself"));
+          // You can directly handle each socket through the execute method of Sentence if needed
+          user.execute(s -> s.send("myself"));
         });
 
-        // How to allow only one socket per username
+        // Limits only one socket per user
         boolean onlyOneSocket = Boolean.parseBoolean(findParam(socket.uri(), "onlyOneSocket"));
         if (onlyOneSocket) {
-          // Finds sockets whose username is the same except this socket
-          String me = socket.id();
-          server.find(s -> username.equals(s.get("username")) && !me.equals(s.id()))
-          // Sends a `signout` event to prevent reconnection and closes a connection
-          .send("signout").close();
-          // As of 1.2, it can be written more concisely
-          // `server.byAttr("username", username).exclude(socket).send("signout").close();`
+          // Finds sockets opened by whose username is the same other than this socket and
+          // sends a 'signout' event to prevent reconnection and closes a connection
+          user.find(id(socket).negate()).send("signout").close();
         }
       }
 
-      // ## Recovering Missed Events
+      // ## Disconnection Handling
       Queue<Object[]> queue = new ConcurrentLinkedQueue<>();
       // Caches events that fail to send due to disconnection
       socket.oncache(args -> queue.offer(args));
@@ -119,12 +117,12 @@ public class CettiaConfigListener implements ServletContextListener {
     // ## Working with Sockets
     // To deal with sockets, inject the server wherever you want
     ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    // Sends a welcome event to sockets representing user not signed in every 5 seconds
+    // Sends a 'welcome' event to sockets representing user not signed in every 5 seconds
     executor.scheduleAtFixedRate(() -> server.byTag("nonmember").send("welcome"), 0, 5, SECONDS);
 
     // ## Plugging Into the Web Framework
     // Cettia is designed to run on any web framework seamlessly on the JVM
-    // Note how `httpAction` and `wsAction` are plugged into Servlet and Java API for Websocket
+    // Note how 'httpAction' and 'wsAction' are plugged into Servlet and Java API for Websocket
     ServletContext context = event.getServletContext();
     AsityServlet asityServlet = new AsityServlet().onhttp(/* ㅇㅅㅇ */ httpAction);
     ServletRegistration.Dynamic reg = context.addServlet(AsityServlet.class.getName(), asityServlet);
