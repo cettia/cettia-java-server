@@ -19,7 +19,7 @@
   <parent>
     <groupId>io.cettia</groupId>
     <artifactId>cettia-server-parent</artifactId>
-    <version>1.2.0-SNAPSHOT</version>
+    <version>1.2.0</version>
   </parent>
   <artifactId>cettia-server</artifactId>
   <name>Cettia Server/Server</name>
